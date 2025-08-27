@@ -11,6 +11,7 @@ import { Slider } from "@/components/ui/slider"
 import { Progress } from "@/components/ui/progress"
 import { Checkbox } from "@/components/ui/checkbox"
 import { AdBanner } from "@/components/ads/ad-banner"
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd"
 import { 
   Upload, 
   Download, 

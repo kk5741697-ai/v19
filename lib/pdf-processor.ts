@@ -214,7 +214,7 @@ export class PDFProcessor {
 
       // Create new PDF with compression
       const compressedPdf = await PDFDocument.create()
-      const pages = await compressedPdf.copyPages(pdf, pdf.getPageIndices())
+      const pages = await protectedPdf.copyPages(pdf, pdf.getPageIndices())
 
       pages.forEach((page) => {
         // Scale down if high compression requested
