@@ -184,135 +184,140 @@ export function TextToolLayout({
 
       {/* Main Interface */}
       <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
           {/* Input Panel */}
-          <Card>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Button variant="ghost" size="sm">
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm">
-                    <RefreshCw className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => copyToClipboard(input)}>
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => downloadFile(input, `input${getFileExtension()}`)}>
-                    <Download className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setInput("")}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm">
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="text-sm text-gray-500">Sample</div>
-              </div>
-              
-              <Tabs defaultValue="file" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="file">
-                    <FileText className="h-4 w-4 mr-2" />
-                    File
-                  </TabsTrigger>
-                  <TabsTrigger value="url">
-                    <Link className="h-4 w-4 mr-2" />
-                    URL
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </CardHeader>
-            <CardContent>
-              <Textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder={placeholder}
-                className="min-h-[400px] font-mono text-sm resize-none border-0 focus:ring-0"
-              />
-              <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
-                <span>Ln: {input.split('\n').length} Col: {input.length}</span>
-                <div className="flex space-x-4">
-                  <span>JSON</span>
-                  <span>UTF-8</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Output Panel */}
-          <Card>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Button variant="ghost" size="sm">
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => copyToClipboard(output)}>
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => downloadFile(output, `output${getFileExtension()}`)}>
-                    <Download className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm">
-                    <Share2 className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm">
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="text-sm font-medium bg-gray-800 text-white px-2 py-1 rounded">
-                  Output
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="auto-update"
-                  checked={autoUpdate}
-                  onCheckedChange={setAutoUpdate}
-                />
-                <label htmlFor="auto-update" className="text-sm">Auto Update</label>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {error ? (
-                <div className="min-h-[400px] flex items-center justify-center text-red-500 bg-red-50 rounded border">
-                  <div className="text-center">
-                    <AlertCircle className="h-8 w-8 mx-auto mb-2" />
-                    <p>{error}</p>
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Button variant="ghost" size="sm">
+                      <Settings className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm">
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => copyToClipboard(input)}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => downloadFile(input, `input${getFileExtension()}`)}>
+                      <Download className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setInput("")}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm">
+                      <Eye className="h-4 w-4" />
+                    </Button>
                   </div>
+                  <div className="text-sm text-gray-500">Sample</div>
                 </div>
-              ) : (
+                
+                <Tabs defaultValue="file" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="file">
+                      <FileText className="h-4 w-4 mr-2" />
+                      File
+                    </TabsTrigger>
+                    <TabsTrigger value="url">
+                      <Link className="h-4 w-4 mr-2" />
+                      URL
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </CardHeader>
+              <CardContent>
                 <Textarea
-                  value={output}
-                  readOnly
-                  placeholder={outputPlaceholder}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder={placeholder}
                   className="min-h-[400px] font-mono text-sm resize-none border-0 focus:ring-0"
                 />
-              )}
-              <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
-                <span>Ln: {output.split('\n').length} Col: {output.length}</span>
-                <div className="flex space-x-4">
-                  <span>TOML</span>
-                  <span>UTF-8</span>
+                <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
+                  <span>Ln: {input.split('\n').length} Col: {input.length}</span>
+                  <div className="flex space-x-4">
+                    <span>JSON</span>
+                    <span>UTF-8</span>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Output Panel */}
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Button variant="ghost" size="sm">
+                      <Settings className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => copyToClipboard(output)}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => downloadFile(output, `output${getFileExtension()}`)}>
+                      <Download className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm">
+                      <Share2 className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="text-sm font-medium bg-gray-800 text-white px-2 py-1 rounded">
+                    Output
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="auto-update"
+                    checked={autoUpdate}
+                    onCheckedChange={setAutoUpdate}
+                  />
+                  <label htmlFor="auto-update" className="text-sm">Auto Update</label>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {error ? (
+                  <div className="min-h-[400px] flex items-center justify-center text-red-500 bg-red-50 rounded border">
+                    <div className="text-center">
+                      <AlertCircle className="h-8 w-8 mx-auto mb-2" />
+                      <p>{error}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <Textarea
+                    value={output}
+                    readOnly
+                    placeholder={outputPlaceholder}
+                    className="min-h-[400px] font-mono text-sm resize-none border-0 focus:ring-0"
+                  />
+                )}
+                <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
+                  <span>Ln: {output.split('\n').length} Col: {output.length}</span>
+                  <div className="flex space-x-4">
+                    <span>TOML</span>
+                    <span>UTF-8</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
-        {/* Tool Options */}
+        {/* Simplified Tool Options */}
         {options.length > 0 && (
           <Card className="mb-8">
             <CardHeader>
               <CardTitle>Options</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {options.map((option) => (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Show only first 3 most important options */}
+                {options.slice(0, 3).map((option) => (
                   <div key={option.key} className="space-y-2">
                     <Label className="text-sm font-medium">{option.label}</Label>
                     

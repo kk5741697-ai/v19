@@ -96,18 +96,17 @@ export function ImageToolsLayout({
   const [progress, setProgress] = useState(0)
   const [toolOptions, setToolOptions] = useState<Record<string, any>>({})
   const [selectedFile, setSelectedFile] = useState<ImageFile | null>(null)
-  const [cropMode, setCropMode] = useState(false)
   const [cropArea, setCropArea] = useState<CropArea>({ x: 10, y: 10, width: 80, height: 80 })
   const [isDragActive, setIsDragActive] = useState(false)
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [zoomLevel, setZoomLevel] = useState(100)
-  const [canvasMode, setCanvasMode] = useState<"select" | "crop" | "move">("select")
   const [isDragging, setIsDragging] = useState(false)
+  const [isResizing, setIsResizing] = useState(false)
+  const [dragHandle, setDragHandle] = useState("")
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const isMobile = useIsMobile()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const cropOverlayRef = useRef<HTMLDivElement>(null)
+  const canvasRef = useRef<HTMLDivElement>(null)
 
   // Initialize options
   useEffect(() => {
@@ -198,49 +197,116 @@ export function ImageToolsLayout({
     }
   }
 
+  // Enhanced crop area handling
   const updateCropArea = useCallback((newCropArea: Partial<CropArea>) => {
-    setCropArea(prev => ({ ...prev, ...newCropArea }))
+    const updatedArea = { ...cropArea, ...newCropArea }
+    
+    // Ensure crop area stays within bounds
+    updatedArea.x = Math.max(0, Math.min(100 - updatedArea.width, updatedArea.x))
+    updatedArea.y = Math.max(0, Math.min(100 - updatedArea.height, updatedArea.y))
+    updatedArea.width = Math.max(5, Math.min(100 - updatedArea.x, updatedArea.width))
+    updatedArea.height = Math.max(5, Math.min(100 - updatedArea.y, updatedArea.height))
+    
+    setCropArea(updatedArea)
+    
     if (selectedFile) {
       setFiles(prev => prev.map(f => 
         f.id === selectedFile.id 
-          ? { ...f, cropArea: { ...f.cropArea, ...newCropArea } }
+          ? { ...f, cropArea: updatedArea }
           : f
       ))
     }
-  }, [selectedFile])
+  }, [cropArea, selectedFile])
 
-  const handleCanvasMouseDown = (e: React.MouseEvent) => {
-    if (canvasMode === "crop" && selectedFile) {
+  // Enhanced mouse handlers for crop canvas
+  const handleMouseDown = useCallback((e: React.MouseEvent, handle?: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    if (!canvasRef.current) return
+    
+    const rect = canvasRef.current.getBoundingClientRect()
+    setDragStart({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    })
+    
+    if (handle) {
+      setIsResizing(true)
+      setDragHandle(handle)
+    } else {
       setIsDragging(true)
-      const rect = e.currentTarget.getBoundingClientRect()
-      setDragStart({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
-      })
     }
-  }
+  }, [])
 
-  const handleCanvasMouseMove = (e: React.MouseEvent) => {
-    if (isDragging && canvasMode === "crop" && selectedFile) {
-      const rect = e.currentTarget.getBoundingClientRect()
-      const currentX = e.clientX - rect.left
-      const currentY = e.clientY - rect.top
-      
-      const deltaX = ((currentX - dragStart.x) / rect.width) * 100
-      const deltaY = ((currentY - dragStart.y) / rect.height) * 100
-      
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!canvasRef.current || (!isDragging && !isResizing)) return
+    
+    const rect = canvasRef.current.getBoundingClientRect()
+    const currentX = e.clientX - rect.left
+    const currentY = e.clientY - rect.top
+    
+    const deltaX = ((currentX - dragStart.x) / rect.width) * 100
+    const deltaY = ((currentY - dragStart.y) / rect.height) * 100
+
+    if (isDragging) {
+      // Move crop area
       updateCropArea({
-        x: Math.max(0, Math.min(90, cropArea.x + deltaX)),
-        y: Math.max(0, Math.min(90, cropArea.y + deltaY))
+        x: cropArea.x + deltaX,
+        y: cropArea.y + deltaY
       })
+    } else if (isResizing && dragHandle) {
+      // Resize crop area based on handle
+      let newCropArea = { ...cropArea }
       
-      setDragStart({ x: currentX, y: currentY })
+      switch (dragHandle) {
+        case "nw":
+          newCropArea.x += deltaX
+          newCropArea.y += deltaY
+          newCropArea.width -= deltaX
+          newCropArea.height -= deltaY
+          break
+        case "ne":
+          newCropArea.y += deltaY
+          newCropArea.width += deltaX
+          newCropArea.height -= deltaY
+          break
+        case "sw":
+          newCropArea.x += deltaX
+          newCropArea.width -= deltaX
+          newCropArea.height += deltaY
+          break
+        case "se":
+          newCropArea.width += deltaX
+          newCropArea.height += deltaY
+          break
+        case "n":
+          newCropArea.y += deltaY
+          newCropArea.height -= deltaY
+          break
+        case "s":
+          newCropArea.height += deltaY
+          break
+        case "w":
+          newCropArea.x += deltaX
+          newCropArea.width -= deltaX
+          break
+        case "e":
+          newCropArea.width += deltaX
+          break
+      }
+      
+      updateCropArea(newCropArea)
     }
-  }
+    
+    setDragStart({ x: currentX, y: currentY })
+  }, [isDragging, isResizing, dragHandle, cropArea, dragStart, updateCropArea])
 
-  const handleCanvasMouseUp = () => {
+  const handleMouseUp = useCallback(() => {
     setIsDragging(false)
-  }
+    setIsResizing(false)
+    setDragHandle("")
+  }, [])
 
   const processFiles = async () => {
     if (files.length === 0) {
@@ -427,105 +493,156 @@ export function ImageToolsLayout({
     }
   }
 
-  const groupedOptions = options.reduce((groups, option) => {
-    const section = option.section || "General"
-    if (!groups[section]) groups[section] = []
-    groups[section].push(option)
-    return groups
-  }, {} as Record<string, ToolOption[]>)
-
+  // Enhanced crop canvas with proper interaction
   const renderCropCanvas = () => {
     if (!selectedFile || toolType !== "crop") return null
 
     return (
-      <div className="relative bg-gray-100 rounded-lg overflow-hidden" style={{ aspectRatio: "16/9" }}>
+      <div 
+        ref={canvasRef}
+        className="relative bg-gray-900 rounded-lg overflow-hidden cursor-crosshair"
+        style={{ height: "60vh" }}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      >
+        {/* Background Image */}
         <img
           src={selectedFile.preview}
           alt={selectedFile.name}
-          className="w-full h-full object-contain"
-          style={{ transform: `scale(${zoomLevel / 100})` }}
+          className="w-full h-full object-contain select-none"
+          style={{
+            transform: `scale(${zoomLevel / 100})`,
+            filter: "brightness(0.7)"
+          }}
+          draggable={false}
         />
-        
+
+        {/* Grid Overlay */}
+        <div className="absolute inset-0 pointer-events-none">
+          <svg className="w-full h-full">
+            <defs>
+              <pattern id="grid" width="10%" height="10%" patternUnits="userSpaceOnUse">
+                <path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1"/>
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#grid)" />
+          </svg>
+        </div>
+
         {/* Crop Overlay */}
         <div
-          className="absolute border-2 border-blue-500 bg-blue-500/20 cursor-move"
+          className="absolute border-2 border-blue-500 bg-blue-500/10 cursor-move"
           style={{
             left: `${cropArea.x}%`,
             top: `${cropArea.y}%`,
             width: `${cropArea.width}%`,
             height: `${cropArea.height}%`,
           }}
-          onMouseDown={handleCanvasMouseDown}
-          onMouseMove={handleCanvasMouseMove}
-          onMouseUp={handleCanvasMouseUp}
+          onMouseDown={(e) => handleMouseDown(e)}
         >
-          {/* Resize Handles */}
-          <div className="absolute -top-1 -left-1 w-3 h-3 bg-blue-500 border border-white rounded-full cursor-nw-resize"></div>
-          <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 border border-white rounded-full cursor-ne-resize"></div>
-          <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-blue-500 border border-white rounded-full cursor-sw-resize"></div>
-          <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-blue-500 border border-white rounded-full cursor-se-resize"></div>
+          {/* Corner Handles */}
+          <div 
+            className="absolute -top-2 -left-2 w-4 h-4 bg-blue-500 border-2 border-white rounded-full cursor-nw-resize hover:scale-125 transition-transform"
+            onMouseDown={(e) => handleMouseDown(e, "nw")}
+          />
+          <div 
+            className="absolute -top-2 -right-2 w-4 h-4 bg-blue-500 border-2 border-white rounded-full cursor-ne-resize hover:scale-125 transition-transform"
+            onMouseDown={(e) => handleMouseDown(e, "ne")}
+          />
+          <div 
+            className="absolute -bottom-2 -left-2 w-4 h-4 bg-blue-500 border-2 border-white rounded-full cursor-sw-resize hover:scale-125 transition-transform"
+            onMouseDown={(e) => handleMouseDown(e, "sw")}
+          />
+          <div 
+            className="absolute -bottom-2 -right-2 w-4 h-4 bg-blue-500 border-2 border-white rounded-full cursor-se-resize hover:scale-125 transition-transform"
+            onMouseDown={(e) => handleMouseDown(e, "se")}
+          />
           
           {/* Edge Handles */}
-          <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-blue-500 border border-white rounded-full cursor-n-resize"></div>
-          <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-blue-500 border border-white rounded-full cursor-s-resize"></div>
-          <div className="absolute -left-1 top-1/2 transform -translate-y-1/2 w-3 h-3 bg-blue-500 border border-white rounded-full cursor-w-resize"></div>
-          <div className="absolute -right-1 top-1/2 transform -translate-y-1/2 w-3 h-3 bg-blue-500 border border-white rounded-full cursor-e-resize"></div>
+          <div 
+            className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-blue-500 border-2 border-white rounded-full cursor-n-resize hover:scale-125 transition-transform"
+            onMouseDown={(e) => handleMouseDown(e, "n")}
+          />
+          <div 
+            className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-blue-500 border-2 border-white rounded-full cursor-s-resize hover:scale-125 transition-transform"
+            onMouseDown={(e) => handleMouseDown(e, "s")}
+          />
+          <div 
+            className="absolute -left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-blue-500 border-2 border-white rounded-full cursor-w-resize hover:scale-125 transition-transform"
+            onMouseDown={(e) => handleMouseDown(e, "w")}
+          />
+          <div 
+            className="absolute -right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-blue-500 border-2 border-white rounded-full cursor-e-resize hover:scale-125 transition-transform"
+            onMouseDown={(e) => handleMouseDown(e, "e")}
+          />
+
+          {/* Center Move Handle */}
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-6 h-6 bg-blue-500/50 border border-blue-500 rounded cursor-move flex items-center justify-center">
+            <Move className="h-3 w-3 text-white" />
+          </div>
         </div>
 
-        {/* Canvas Tools */}
-        <div className="absolute top-4 left-4 flex space-x-2">
-          <Button
-            variant={canvasMode === "select" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setCanvasMode("select")}
-          >
-            <MousePointer className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={canvasMode === "crop" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setCanvasMode("crop")}
-          >
-            <Crop className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={canvasMode === "move" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setCanvasMode("move")}
-          >
-            <Hand className="h-4 w-4" />
-          </Button>
-        </div>
-
-        {/* Zoom Controls */}
-        <div className="absolute top-4 right-4 flex items-center space-x-2 bg-white/90 backdrop-blur-sm rounded-lg p-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setZoomLevel(Math.max(25, zoomLevel - 25))}
-          >
-            <ZoomOut className="h-4 w-4" />
-          </Button>
-          <span className="text-sm font-medium min-w-[3rem] text-center">
-            {zoomLevel}%
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setZoomLevel(Math.min(400, zoomLevel + 25))}
-          >
-            <ZoomIn className="h-4 w-4" />
-          </Button>
+        {/* Canvas Controls */}
+        <div className="absolute top-4 right-4 flex flex-col space-y-2">
+          <div className="flex items-center space-x-1 bg-black/80 rounded-lg p-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setZoomLevel(Math.max(25, zoomLevel - 25))}
+              className="text-white hover:bg-white/20 h-8 w-8 p-0"
+            >
+              <ZoomOut className="h-4 w-4" />
+            </Button>
+            <span className="text-white text-xs font-medium min-w-[3rem] text-center">
+              {zoomLevel}%
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setZoomLevel(Math.min(400, zoomLevel + 25))}
+              className="text-white hover:bg-white/20 h-8 w-8 p-0"
+            >
+              <ZoomIn className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Crop Info */}
-        <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg p-2 text-xs">
-          <div>X: {Math.round(cropArea.x)}% Y: {Math.round(cropArea.y)}%</div>
-          <div>W: {Math.round(cropArea.width)}% H: {Math.round(cropArea.height)}%</div>
+        <div className="absolute bottom-4 left-4 bg-black/80 text-white text-xs rounded px-2 py-1 font-mono">
+          {Math.round(cropArea.x)}, {Math.round(cropArea.y)} • {Math.round(cropArea.width)}×{Math.round(cropArea.height)}%
+        </div>
+
+        {/* Aspect Ratio Presets */}
+        <div className="absolute bottom-4 right-4 flex space-x-1">
+          {["1:1", "4:3", "16:9", "3:2", "free"].map((ratio) => (
+            <Button
+              key={ratio}
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (ratio === "free") return
+                const [w, h] = ratio.split(':').map(Number)
+                const targetRatio = w / h
+                const newHeight = cropArea.width / targetRatio
+                updateCropArea({ height: Math.min(90, newHeight) })
+              }}
+              className="text-xs h-7 bg-black/80 text-white border-white/20 hover:bg-white/20"
+            >
+              {ratio === "free" ? "Free" : ratio}
+            </Button>
+          ))}
         </div>
       </div>
     )
   }
+
+  const groupedOptions = options.reduce((groups, option) => {
+    const section = option.section || "General"
+    if (!groups[section]) groups[section] = []
+    groups[section].push(option)
+    return groups
+  }, {} as Record<string, ToolOption[]>)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -622,7 +739,7 @@ export function ImageToolsLayout({
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {/* Single File Canvas for Crop Tool */}
+                    {/* Crop Canvas for Single File */}
                     {toolType === "crop" && selectedFile ? (
                       renderCropCanvas()
                     ) : (
@@ -695,247 +812,213 @@ export function ImageToolsLayout({
             </Card>
           </div>
 
-          {/* Right Sidebar */}
-          <div className="space-y-6">
-            {/* Presets */}
-            {presets.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Quick Presets</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 gap-2">
-                    {presets.map((preset, index) => (
-                      <Button
-                        key={index}
-                        variant="outline"
-                        onClick={() => applyPreset(preset)}
-                        className="justify-start h-auto p-3"
-                      >
-                        <div className="text-left">
-                          <div className="font-medium">{preset.name}</div>
-                          <div className="text-xs text-gray-500">
-                            {Object.entries(preset.values).slice(0, 2).map(([key, value]) => 
-                              `${key}: ${value}`
-                            ).join(', ')}
-                          </div>
-                        </div>
-                      </Button>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+          {/* Right Sidebar - Fixed Position */}
+          <div className="lg:col-span-1">
+            <div className="lg:fixed lg:top-24 lg:right-4 lg:w-80 lg:h-[calc(100vh-8rem)] lg:overflow-y-auto space-y-4">
+              {/* Crop Controls for Crop Tool */}
+              {toolType === "crop" && selectedFile && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Crop Controls</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-sm">X Position</Label>
+                        <Input
+                          type="number"
+                          value={Math.round(cropArea.x)}
+                          onChange={(e) => updateCropArea({ x: Number(e.target.value) })}
+                          min={0}
+                          max={100}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-sm">Y Position</Label>
+                        <Input
+                          type="number"
+                          value={Math.round(cropArea.y)}
+                          onChange={(e) => updateCropArea({ y: Number(e.target.value) })}
+                          min={0}
+                          max={100}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-sm">Width</Label>
+                        <Input
+                          type="number"
+                          value={Math.round(cropArea.width)}
+                          onChange={(e) => updateCropArea({ width: Number(e.target.value) })}
+                          min={1}
+                          max={100}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-sm">Height</Label>
+                        <Input
+                          type="number"
+                          value={Math.round(cropArea.height)}
+                          onChange={(e) => updateCropArea({ height: Number(e.target.value) })}
+                          min={1}
+                          max={100}
+                        />
+                      </div>
+                    </div>
 
-            {/* Crop Controls */}
-            {toolType === "crop" && selectedFile && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Crop Controls</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm">X Position</Label>
-                      <Input
-                        type="number"
-                        value={Math.round(cropArea.x)}
-                        onChange={(e) => updateCropArea({ x: Number(e.target.value) })}
-                        min={0}
-                        max={100}
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm">Y Position</Label>
-                      <Input
-                        type="number"
-                        value={Math.round(cropArea.y)}
-                        onChange={(e) => updateCropArea({ y: Number(e.target.value) })}
-                        min={0}
-                        max={100}
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm">Width</Label>
-                      <Input
-                        type="number"
-                        value={Math.round(cropArea.width)}
-                        onChange={(e) => updateCropArea({ width: Number(e.target.value) })}
-                        min={1}
-                        max={100}
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm">Height</Label>
-                      <Input
-                        type="number"
-                        value={Math.round(cropArea.height)}
-                        onChange={(e) => updateCropArea({ height: Number(e.target.value) })}
-                        min={1}
-                        max={100}
-                      />
-                    </div>
-                  </div>
+                    <Button
+                      variant="outline"
+                      onClick={() => updateCropArea({ x: 10, y: 10, width: 80, height: 80 })}
+                      className="w-full"
+                    >
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      Reset Crop
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
 
-                  <div className="space-y-2">
-                    <Label className="text-sm">Aspect Ratio Presets</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        { name: "1:1", ratio: 1 },
-                        { name: "4:3", ratio: 4/3 },
-                        { name: "16:9", ratio: 16/9 },
-                        { name: "3:2", ratio: 3/2 }
-                      ].map((preset) => (
+              {/* Presets */}
+              {presets.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Quick Presets</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 gap-2">
+                      {presets.map((preset, index) => (
                         <Button
-                          key={preset.name}
+                          key={index}
                           variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const newHeight = cropArea.width / preset.ratio
-                            updateCropArea({ height: Math.min(90, newHeight) })
-                          }}
+                          onClick={() => applyPreset(preset)}
+                          className="justify-start h-auto p-3"
                         >
-                          {preset.name}
+                          <div className="text-left">
+                            <div className="font-medium">{preset.name}</div>
+                          </div>
                         </Button>
                       ))}
                     </div>
-                  </div>
+                  </CardContent>
+                </Card>
+              )}
 
-                  <Button
-                    variant="outline"
-                    onClick={() => updateCropArea({ x: 10, y: 10, width: 80, height: 80 })}
-                    className="w-full"
-                  >
-                    <RotateCcw className="h-4 w-4 mr-2" />
-                    Reset Crop
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Tool Options */}
-            {Object.keys(groupedOptions).length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center">
-                    <Settings className="h-5 w-5 mr-2" />
-                    Settings
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Tabs defaultValue={Object.keys(groupedOptions)[0]} className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
-                      {Object.keys(groupedOptions).slice(0, 2).map((section) => (
-                        <TabsTrigger key={section} value={section} className="text-xs">
-                          {section}
-                        </TabsTrigger>
+              {/* Tool Options - Simplified */}
+              {Object.keys(groupedOptions).length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center">
+                      <Settings className="h-5 w-5 mr-2" />
+                      Options
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {/* Show only essential options */}
+                      {Object.entries(groupedOptions).slice(0, 1).map(([section, sectionOptions]) => (
+                        <div key={section} className="space-y-3">
+                          {sectionOptions.slice(0, 4).map((option) => (
+                            <div key={option.key} className="space-y-2">
+                              <Label className="text-sm font-medium">{option.label}</Label>
+                              {renderOptionControl(option)}
+                            </div>
+                          ))}
+                        </div>
                       ))}
-                    </TabsList>
-                    
-                    {Object.entries(groupedOptions).map(([section, sectionOptions]) => (
-                      <TabsContent key={section} value={section} className="space-y-4 mt-4">
-                        {sectionOptions.map((option) => (
-                          <div key={option.key} className="space-y-2">
-                            <Label className="text-sm font-medium">{option.label}</Label>
-                            {renderOptionControl(option)}
-                          </div>
-                        ))}
-                      </TabsContent>
-                    ))}
-                  </Tabs>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Processing Status */}
-            {isProcessing && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Processing</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Progress</span>
-                      <span>{progress}%</span>
                     </div>
-                    <Progress value={progress} />
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    Processing your images...
-                  </p>
-                </CardContent>
-              </Card>
-            )}
+                  </CardContent>
+                </Card>
+              )}
 
-            {/* Action Button */}
-            <Card>
-              <CardContent className="pt-6">
-                <Button
-                  onClick={processFiles}
-                  disabled={files.length === 0 || isProcessing}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                  size="lg"
-                >
-                  {isProcessing ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <Icon className="h-5 w-5 mr-2" />
-                      {title}
-                    </>
+              {/* Processing Status */}
+              {isProcessing && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Processing</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Progress</span>
+                        <span>{progress}%</span>
+                      </div>
+                      <Progress value={progress} />
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      Processing your images...
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Action Button */}
+              <Card>
+                <CardContent className="pt-6">
+                  <Button
+                    onClick={processFiles}
+                    disabled={files.length === 0 || isProcessing}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    size="lg"
+                  >
+                    {isProcessing ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <Icon className="h-5 w-5 mr-2" />
+                        {title}
+                      </>
+                    )}
+                  </Button>
+                  
+                  {files.length > 0 && !isProcessing && (
+                    <p className="text-xs text-center text-gray-500 mt-2">
+                      {files.length} image{files.length > 1 ? 's' : ''} ready to process
+                    </p>
                   )}
-                </Button>
-                
-                {files.length > 0 && !isProcessing && (
-                  <p className="text-xs text-center text-gray-500 mt-2">
-                    {files.length} image{files.length > 1 ? 's' : ''} ready to process
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            {/* File Info */}
-            {selectedFile && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Image Details</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-500">Dimensions:</span>
-                      <span className="ml-2 font-medium">
-                        {selectedFile.dimensions.width}×{selectedFile.dimensions.height}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Size:</span>
-                      <span className="ml-2 font-medium">
-                        {formatFileSize(selectedFile.size)}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Format:</span>
-                      <span className="ml-2 font-medium">
-                        {selectedFile.type.split('/')[1].toUpperCase()}
-                      </span>
-                    </div>
-                    {selectedFile.processed && selectedFile.processedSize && (
+              {/* File Info */}
+              {selectedFile && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Image Details</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
-                        <span className="text-gray-500">New Size:</span>
+                        <span className="text-gray-500">Dimensions:</span>
                         <span className="ml-2 font-medium">
-                          {formatFileSize(selectedFile.processedSize)}
+                          {selectedFile.dimensions.width}×{selectedFile.dimensions.height}
                         </span>
                       </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                      <div>
+                        <span className="text-gray-500">Size:</span>
+                        <span className="ml-2 font-medium">
+                          {formatFileSize(selectedFile.size)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Format:</span>
+                        <span className="ml-2 font-medium">
+                          {selectedFile.type.split('/')[1].toUpperCase()}
+                        </span>
+                      </div>
+                      {selectedFile.processed && selectedFile.processedSize && (
+                        <div>
+                          <span className="text-gray-500">New Size:</span>
+                          <span className="ml-2 font-medium">
+                            {formatFileSize(selectedFile.processedSize)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </div>
         </div>
       </div>
