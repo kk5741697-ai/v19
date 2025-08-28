@@ -15,7 +15,7 @@ const splitOptions = [
       { value: "pages", label: "Extract Selected Pages" },
       { value: "size", label: "Equal Parts" },
     ],
-    condition: (options) => options.splitMode === "pages",
+    section: "Split Settings",
   },
   {
     key: "rangeMode",
@@ -66,7 +66,17 @@ async function splitPDF(files: any[], options: any) {
 
     const file = files[0]
     
-    const splitResults = await PDFProcessor.splitPDF(file.originalFile || file.file, [], options)
+    // Prepare page ranges based on split mode
+    let pageRanges: Array<{ from: number; to: number }> = []
+    
+    if (options.splitMode === "range" && options.pageRanges) {
+      pageRanges = options.pageRanges
+    } else if (options.splitMode === "size" && options.equalParts) {
+      // This will be handled in the processor
+      pageRanges = []
+    }
+    
+    const splitResults = await PDFProcessor.splitPDF(file.originalFile || file.file, pageRanges, options)
 
     if (options.mergeRanges && splitResults.length > 1) {
       // Merge all ranges into one PDF

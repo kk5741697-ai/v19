@@ -88,6 +88,12 @@ export default function BulkQRGeneratorPage() {
         const item = data[i]
         
         try {
+          // Validate content before generating QR
+          if (!item.content || item.content.trim() === "") {
+            console.warn(`Skipping empty content for item ${i + 1}`)
+            continue
+          }
+
           const qrDataURL = await QRProcessor.generateQRCode(item.content, {
             width: 1000,
             errorCorrectionLevel: "M"
@@ -99,6 +105,7 @@ export default function BulkQRGeneratorPage() {
           })
         } catch (error) {
           console.error(`Failed to generate QR for item ${i + 1}:`, error)
+          // Continue with other items instead of stopping
         }
         
         setProgress(((i + 1) / data.length) * 100)

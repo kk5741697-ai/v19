@@ -44,6 +44,11 @@ export class QRProcessor {
         throw new Error("QR code content cannot be empty")
       }
 
+      // Validate text length for QR code capacity
+      if (text.length > 2953) {
+        throw new Error("Text too long for QR code. Maximum 2953 characters allowed.")
+      }
+
       const qrOptions = {
         width: options.width || 1000,
         margin: options.margin || 4,

@@ -212,6 +212,13 @@ export class PDFProcessor {
           from: i + 1,
           to: i + 1
         }))
+      } else if (options.extractMode === "range" && options.pageRanges) {
+        // Use page ranges from options
+        validRanges = options.pageRanges.filter(range => 
+          range.from >= 1 && 
+          range.to <= totalPages && 
+          range.from <= range.to
+        )
       } else {
         // Use provided ranges or default to all pages
         if (ranges && ranges.length > 0) {

@@ -95,6 +95,13 @@ export function TextToolLayout({
   }, [input, autoUpdate, toolOptions])
 
   const processText = () => {
+    if (!input.trim()) {
+      setOutput("")
+      setError("")
+      setStats(null)
+      return
+    }
+
     if (validateFunction) {
       const validation = validateFunction(input)
       if (!validation.isValid) {
@@ -105,10 +112,16 @@ export function TextToolLayout({
       }
     }
 
-    const result = processFunction(input, toolOptions)
-    setOutput(result.output)
-    setError(result.error || "")
-    setStats(result.stats)
+    try {
+      const result = processFunction(input, toolOptions)
+      setOutput(result.output)
+      setError(result.error || "")
+      setStats(result.stats)
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Processing failed")
+      setOutput("")
+      setStats(null)
+    }
   }
 
   const copyToClipboard = async (text: string) => {

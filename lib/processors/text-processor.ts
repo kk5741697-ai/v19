@@ -24,6 +24,18 @@ export class TextProcessor {
       // Parse JSON to validate
       const parsed = JSON.parse(input)
       
+      if (options.validateOnly) {
+        return { 
+          output: "✓ Valid JSON", 
+          stats: {
+            "Status": "Valid",
+            "Objects": this.countObjects(parsed),
+            "Arrays": this.countArrays(parsed),
+            "Properties": this.countProperties(parsed)
+          }
+        }
+      }
+      
       let output: string
       
       if (options.minify) {
@@ -32,7 +44,9 @@ export class TextProcessor {
         const indent = typeof options.indent === "number" ? options.indent : 2
         
         if (options.sortKeys) {
-          output = JSON.stringify(parsed, Object.keys(parsed).sort(), indent)
+          // Recursive key sorting
+          const sortedObj = this.sortObjectKeys(parsed)
+          output = JSON.stringify(sortedObj, null, indent)
         } else {
           output = JSON.stringify(parsed, null, indent)
         }
@@ -210,6 +224,19 @@ export class TextProcessor {
       })
     }
     return count
+  }
+
+  private static sortObjectKeys(obj: any): any {
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.sortObjectKeys(item))
+    } else if (typeof obj === "object" && obj !== null) {
+      const sorted: any = {}
+      Object.keys(obj).sort().forEach(key => {
+        sorted[key] = this.sortObjectKeys(obj[key])
+      })
+      return sorted
+    }
+    return obj
   }
 
   private static countProperties(obj: any): number {

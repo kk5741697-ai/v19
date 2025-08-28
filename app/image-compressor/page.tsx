@@ -44,8 +44,20 @@ const compressOptions = [
 
 async function compressImages(files: any[], options: any) {
   try {
+    if (files.length === 0) {
+      return {
+        success: false,
+        error: "No files to process",
+      }
+    }
+
     const processedFiles = await Promise.all(
       files.map(async (file) => {
+        // Validate file type
+        if (!file.file.type.startsWith('image/')) {
+          throw new Error(`Invalid file type: ${file.name}`)
+        }
+
         const processedBlob = await ImageProcessor.compressImage(file.originalFile || file.file, {
           quality: options.quality,
           compressionLevel: options.compressionLevel,

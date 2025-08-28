@@ -607,7 +607,6 @@ export default function QRCodeGeneratorPage() {
               >
                 <type.icon className="h-4 w-4" />
                 <span>{type.label}</span>
-                {type.label}
               </button>
             ))}
           </div>

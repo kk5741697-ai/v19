@@ -376,6 +376,20 @@ export function ImageToolsLayout({
       return
     }
 
+    // Validate file formats before processing
+    const invalidFiles = files.filter(file => 
+      !supportedFormats.includes(file.file.type)
+    )
+    
+    if (invalidFiles.length > 0) {
+      toast({
+        title: "Unsupported file formats",
+        description: `${invalidFiles.length} files are not supported. Please use ${supportedFormats.map(f => f.split('/')[1].toUpperCase()).join(', ')} formats only.`,
+        variant: "destructive"
+      })
+      return
+    }
+
     setIsProcessing(true)
     setProcessedFiles([])
 

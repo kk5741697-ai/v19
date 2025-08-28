@@ -115,6 +115,7 @@ const getBrandConfig = (hostname: string) => {
       return { name: "TOOLS", color: "text-gray-900", bgColor: "bg-gray-900" }
   }
 }
+
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -147,132 +148,133 @@ export function Header() {
   return (
     <>
       <header className="w-full bg-white/98 backdrop-blur-md border-b border-gray-200 sticky top-0 z-40 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="flex h-18 items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2">
-            <div className="flex items-center space-x-2">
-              <div className={`h-10 w-10 rounded-xl ${brandConfig.bgColor} flex items-center justify-center shadow-lg hover:scale-110 transition-transform duration-200`}>
-                <Wrench className="h-6 w-6 text-white" />
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex h-18 items-center justify-between">
+            <Link href="/" className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2">
+                <div className={`h-10 w-10 rounded-xl ${brandConfig.bgColor} flex items-center justify-center shadow-lg hover:scale-110 transition-transform duration-200`}>
+                  <Wrench className="h-6 w-6 text-white" />
+                </div>
+                <div className="flex items-center">
+                  <span className="text-2xl font-bold text-gray-900">PIXORA</span>
+                  <span className={`text-2xl font-bold ${brandConfig.color} ml-1`}>{brandConfig.name}</span>
+                </div>
               </div>
-              <div className="flex items-center">
-                <span className="text-2xl font-bold text-gray-900">PIXORA</span>
-                <span className={`text-2xl font-bold ${brandConfig.color} ml-1`}>{brandConfig.name}</span>
-              </div>
-            </div>
-          </Link>
+            </Link>
 
-          <nav className="hidden lg:flex items-center space-x-6">
-            {mainTools.map((tool) => (
-              <Link
-                key={tool.name}
-                href={tool.href}
-                className="text-sm font-semibold text-gray-700 hover:text-blue-600 transition-all duration-200 px-3 py-2 rounded-lg hover:bg-gray-50"
+            <nav className="hidden lg:flex items-center space-x-6">
+              {mainTools.map((tool) => (
+                <Link
+                  key={tool.name}
+                  href={tool.href}
+                  className="text-sm font-semibold text-gray-700 hover:text-blue-600 transition-all duration-200 px-3 py-2 rounded-lg hover:bg-gray-50"
+                >
+                  {tool.name}
+                </Link>
+              ))}
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="text-sm font-semibold text-gray-700 hover:text-blue-600 px-3 py-2 rounded-lg hover:bg-gray-50">
+                    MORE TOOLS
+                    <ChevronDown className="h-4 w-4 ml-1" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 shadow-xl border-gray-200">
+                  {moreTools.map((tool) => (
+                    <DropdownMenuItem key={tool.name} asChild>
+                      <Link href={tool.href} className="w-full font-medium">
+                        {tool.name}
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </nav>
+
+            <div className="hidden lg:flex items-center space-x-4">
+              <Button 
+                variant="outline" 
+                className="text-gray-700 hover:text-blue-600 font-medium px-4 py-2 rounded-lg hover:bg-gray-50"
+                onClick={() => setIsSearchOpen(true)}
               >
-                {tool.name}
-              </Link>
-            ))}
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="text-sm font-semibold text-gray-700 hover:text-blue-600 px-3 py-2 rounded-lg hover:bg-gray-50">
-                  MORE TOOLS
-                  <ChevronDown className="h-4 w-4 ml-1" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 shadow-xl border-gray-200">
-                {moreTools.map((tool) => (
-                  <DropdownMenuItem key={tool.name} asChild>
-                    <Link href={tool.href} className="w-full font-medium">
-                      {tool.name}
-                    </Link>
+                <Search className="h-4 w-4 mr-2" />
+                Search
+                <kbd className="ml-2 text-xs bg-gray-100 px-1.5 py-0.5 rounded">⌘K</kbd>
+              </Button>
+              <Button variant="ghost" className="text-gray-700 hover:text-blue-600 font-medium px-4 py-2 rounded-lg hover:bg-gray-50">
+                Login
+              </Button>
+              <Button className={`${brandConfig.bgColor} hover:opacity-90 text-white px-6 py-2 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105`}>
+                Sign up
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-lg hover:bg-gray-50">
+                    <MoreHorizontal className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 shadow-xl border-gray-200">
+                  <DropdownMenuItem asChild>
+                    <Link href="/pricing" className="font-medium">Pricing</Link>
                   </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </nav>
+                  <DropdownMenuItem asChild>
+                    <Link href="/billing" className="font-medium">Billing</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin" className="font-medium">Admin</Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
 
-          <div className="hidden lg:flex items-center space-x-4">
-            <Button 
-              variant="outline" 
-              className="text-gray-700 hover:text-blue-600 font-medium px-4 py-2 rounded-lg hover:bg-gray-50"
-              onClick={() => setIsSearchOpen(true)}
-            >
-              <Search className="h-4 w-4 mr-2" />
-              Search
-              <kbd className="ml-2 text-xs bg-gray-100 px-1.5 py-0.5 rounded">⌘K</kbd>
+            {/* Mobile menu button */}
+            <Button variant="ghost" size="sm" className="lg:hidden rounded-lg" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+              {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
-            <Button variant="ghost" className="text-gray-700 hover:text-blue-600 font-medium px-4 py-2 rounded-lg hover:bg-gray-50">
-              Login
-            </Button>
-            <Button className={`${brandConfig.bgColor} hover:opacity-90 text-white px-6 py-2 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105`}>
-              Sign up
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-lg hover:bg-gray-50">
-                  <MoreHorizontal className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 shadow-xl border-gray-200">
-                <DropdownMenuItem asChild>
-                  <Link href="/pricing" className="font-medium">Pricing</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/billing" className="font-medium">Billing</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/admin" className="font-medium">Admin</Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
 
-          {/* Mobile menu button */}
-          <Button variant="ghost" size="sm" className="lg:hidden rounded-lg" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-            {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </Button>
+          {/* Mobile Menu */}
+          {isMenuOpen && (
+            <div className="lg:hidden border-t bg-white/95 backdrop-blur-md">
+              <div className="px-4 py-6 space-y-4">
+                <nav className="space-y-2">
+                  {mainTools.map((tool) => (
+                    <Link
+                      key={tool.name}
+                      href={tool.href}
+                      className="block px-4 py-3 text-sm font-semibold text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-all duration-200"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      {tool.name}
+                    </Link>
+                  ))}
+                  {moreTools.map((tool) => (
+                    <Link
+                      key={tool.name}
+                      href={tool.href}
+                      className="block px-4 py-3 text-sm font-semibold text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-all duration-200"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      {tool.name}
+                    </Link>
+                  ))}
+                </nav>
+                <div className="flex space-x-3 pt-6 border-t">
+                  <Button variant="outline" size="sm" className="flex-1 bg-white font-medium rounded-lg">
+                    Login
+                  </Button>
+                  <Button size="sm" className={`flex-1 ${brandConfig.bgColor} hover:opacity-90 font-semibold rounded-lg shadow-lg`}>
+                    Sign up
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-
+      </header>
 
       <SearchDialog open={isSearchOpen} onOpenChange={setIsSearchOpen} />
     </>
-        {isMenuOpen && (
-          <div className="lg:hidden border-t bg-white/95 backdrop-blur-md">
-            <div className="px-4 py-6 space-y-4">
-              <nav className="space-y-2">
-                {mainTools.map((tool) => (
-                  <Link
-                    key={tool.name}
-                    href={tool.href}
-                    className="block px-4 py-3 text-sm font-semibold text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-all duration-200"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    {tool.name}
-                  </Link>
-                ))}
-                {moreTools.map((tool) => (
-                  <Link
-                    key={tool.name}
-                    href={tool.href}
-                    className="block px-4 py-3 text-sm font-semibold text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-all duration-200"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    {tool.name}
-                  </Link>
-                ))}
-              </nav>
-              <div className="flex space-x-3 pt-6 border-t">
-                <Button variant="outline" size="sm" className="flex-1 bg-white font-medium rounded-lg">
-                  Login
-                </Button>
-                <Button size="sm" className={`flex-1 ${brandConfig.bgColor} hover:opacity-90 font-semibold rounded-lg shadow-lg`}>
-                  Sign up
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </header>
   )
 }

@@ -64,9 +64,21 @@ function validateJSON(input: string) {
     JSON.parse(input)
     return { isValid: true }
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Invalid JSON format"
+    // Extract line number from error if available
+    const lineMatch = errorMessage.match(/line (\d+)/i)
+    const positionMatch = errorMessage.match(/position (\d+)/i)
+    
+    let enhancedError = errorMessage
+    if (lineMatch) {
+      enhancedError = `Line ${lineMatch[1]}: ${errorMessage}`
+    } else if (positionMatch) {
+      enhancedError = `Position ${positionMatch[1]}: ${errorMessage}`
+    }
+    
     return { 
       isValid: false, 
-      error: error instanceof Error ? error.message : "Invalid JSON format" 
+      error: enhancedError
     }
   }
 }

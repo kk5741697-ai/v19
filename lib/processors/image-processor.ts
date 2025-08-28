@@ -254,6 +254,7 @@ export class ImageProcessor {
       }
 
       img.onerror = () => reject(new Error("Failed to load image"))
+      img.crossOrigin = "anonymous"
       img.src = URL.createObjectURL(file)
     })
   }

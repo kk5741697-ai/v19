@@ -270,6 +270,25 @@ export function PDFToolsLayout({
       return
     }
 
+    // Validate specific requirements for different tool types
+    if (toolType === "merge" && files.length < 2) {
+      toast({
+        title: "Insufficient files",
+        description: "At least 2 PDF files are required for merging",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (toolType === "split" && files.length !== 1) {
+      toast({
+        title: "Invalid file count",
+        description: "Please select exactly one PDF file to split",
+        variant: "destructive"
+      })
+      return
+    }
+
     setIsProcessing(true)
     setDownloadUrl(null)
 

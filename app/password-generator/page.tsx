@@ -35,13 +35,31 @@ export default function PasswordGeneratorPage() {
     }
 
     if (charset === "") {
-      setPassword("Please select at least one character type")
+      toast({
+        title: "No character types selected",
+        description: "Please select at least one character type",
+        variant: "destructive"
+      })
       return
     }
 
+    // Enhanced password generation with better randomness
     let result = ""
-    for (let i = 0; i < length[0]; i++) {
-      result += charset.charAt(Math.floor(Math.random() * charset.length))
+    const passwordLength = length[0]
+    
+    // Use crypto.getRandomValues for better randomness if available
+    if (typeof window !== "undefined" && window.crypto && window.crypto.getRandomValues) {
+      const array = new Uint32Array(passwordLength)
+      window.crypto.getRandomValues(array)
+      
+      for (let i = 0; i < passwordLength; i++) {
+        result += charset.charAt(array[i] % charset.length)
+      }
+    } else {
+      // Fallback to Math.random
+      for (let i = 0; i < passwordLength; i++) {
+        result += charset.charAt(Math.floor(Math.random() * charset.length))
+      }
     }
 
     setPassword(result)
