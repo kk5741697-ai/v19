@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { QRProcessor } from "@/lib/processors/qr-processor"
+import { QRProcessor } from "@/lib/qr-processor"
 import { User, Download, Copy, FileText } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 

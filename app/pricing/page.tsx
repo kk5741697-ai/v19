@@ -2,8 +2,75 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Check, Star, Zap, Shield, Users, Crown } from "lucide-react"
-import { SUBSCRIPTION_PLANS } from "@/lib/stripe/config"
 import Link from "next/link"
+
+const SUBSCRIPTION_PLANS = {
+  FREE: {
+    name: "Free",
+    description: "Perfect for getting started",
+    price: 0,
+    interval: null,
+    features: [
+      "100MB max file size",
+      "10 tool runs per day",
+      "Basic tools access",
+      "Community support",
+      "Ads supported",
+    ],
+  },
+  PRO: {
+    name: "Pro",
+    description: "For professionals and power users",
+    price: 9.99,
+    interval: "month",
+    features: [
+      "1GB max file size",
+      "Unlimited tool runs",
+      "All tools access",
+      "Priority support",
+      "Ad-free experience",
+      "Bulk processing",
+      "API access",
+    ],
+  },
+  BUSINESS: {
+    name: "Business",
+    description: "For teams and growing businesses",
+    price: 29.99,
+    interval: "month",
+    features: [
+      "5GB max file size",
+      "Unlimited tool runs",
+      "All tools access",
+      "Priority support",
+      "Ad-free experience",
+      "Advanced bulk processing",
+      "Full API access",
+      "Team management",
+      "Usage analytics",
+    ],
+  },
+  ENTERPRISE: {
+    name: "Enterprise",
+    description: "For large organizations with custom needs",
+    price: 99.99,
+    interval: "month",
+    features: [
+      "Unlimited file size",
+      "Unlimited tool runs",
+      "All tools access",
+      "24/7 dedicated support",
+      "Ad-free experience",
+      "Advanced bulk processing",
+      "Full API access",
+      "Team management",
+      "Advanced analytics",
+      "Custom branding",
+      "SLA guarantee",
+      "On-premise deployment",
+    ],
+  },
+}
 
 const planIcons = {
   FREE: Shield,

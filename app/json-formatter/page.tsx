@@ -3,87 +3,91 @@
 import { useState, useEffect } from "react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Checkbox } from "@/components/ui/checkbox"
+import { TextToolLayout } from "@/components/text-tool-layout"
 import { FileText } from "lucide-react"
 import { TextProcessor } from "@/lib/processors/text-processor"
-import { 
-  Copy, 
-  Download, 
-  Upload, 
-  Link, 
-  RefreshCw,
-  Settings,
-  Trash2,
-  Eye,
-  Share2,
-  Heart,
-  AlertCircle
-} from "lucide-react"
-import { toast } from "@/hooks/use-toast"
+
+const jsonExamples = [
+  {
+    name: "Simple Object",
+    content: '{"name":"John","age":30,"city":"New York"}',
+  },
+  {
+    name: "Array of Objects",
+    content: '[{"id":1,"name":"Item 1"},{"id":2,"name":"Item 2"}]',
+  },
+  {
+    name: "Nested Object",
+    content: '{"user":{"profile":{"name":"John","settings":{"theme":"dark","notifications":true}}}}',
+  },
+]
+
+const jsonOptions = [
+  {
+    key: "indent",
+    label: "Indentation",
+    type: "select" as const,
+    defaultValue: 2,
+    selectOptions: [
+      { value: 2, label: "2 Spaces" },
+      { value: 4, label: "4 Spaces" },
+      { value: "tab", label: "Tabs" },
+    ],
+  },
+  {
+    key: "sortKeys",
+    label: "Sort Keys",
+    type: "checkbox" as const,
+    defaultValue: false,
+  },
+  {
+    key: "minify",
+    label: "Minify JSON",
+    type: "checkbox" as const,
+    defaultValue: false,
+  },
+]
+
+function processJSON(input: string, options: any = {}) {
+  return TextProcessor.processJSON(input, options)
+}
+
+function validateJSON(input: string) {
+  if (!input.trim()) {
+    return { isValid: false, error: "Input cannot be empty" }
+  }
+  
+  try {
+    JSON.parse(input)
+    return { isValid: true }
+  } catch (error) {
+    return { isValid: false, error: "Invalid JSON format" }
+  }
+}
 
 export default function JSONFormatterPage() {
-  const [input, setInput] = useState("")
-  const [output, setOutput] = useState("")
-  const [autoUpdate, setAutoUpdate] = useState(true)
-  const [error, setError] = useState("")
-  const [stats, setStats] = useState<any>(null)
-  const [indent, setIndent] = useState(2)
-  const [sortKeys, setSortKeys] = useState(false)
+  return (
+    <div className="min-h-screen bg-background">
+      <Header />
+      <div className="container mx-auto px-4 py-8">
+        <TextToolLayout
+          title="JSON Formatter"
+          description="Beautify, validate, and minify JSON data with syntax highlighting and error detection."
+          icon={FileText}
+          placeholder="Paste your JSON here..."
+          outputPlaceholder="Formatted JSON will appear here..."
+          processFunction={processJSON}
+          validateFunction={validateJSON}
+          options={jsonOptions}
+          examples={jsonExamples}
+          fileExtensions={[".json"]}
+        />
+      </div>
+      <Footer />
+    </div>
+  )
+}
 
-  useEffect(() => {
-    if (autoUpdate && input.trim()) {
-      processJSON()
-    } else if (!input.trim()) {
-      setOutput("")
-      setError("")
-      setStats(null)
-    }
-  }, [input, autoUpdate, indent, sortKeys])
-
-  const processJSON = () => {
-    const result = TextProcessor.processJSON(input, { indent, sortKeys })
-    setOutput(result.output)
-    setError(result.error || "")
-    setStats(result.stats)
-  }
-
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text)
-      toast({
-        title: "Copied to clipboard",
-        description: "Text has been copied successfully"
-      })
-    } catch (error) {
-      console.error("Failed to copy:", error)
-    }
-  }
-
-  const downloadFile = (content: string, filename: string) => {
-    const blob = new Blob([content], { type: "application/json" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-  }
-
-  const loadExample = (exampleContent: string) => {
-    setInput(exampleContent)
-  }
-
-  const examples = [
-    '{"name":"John","age":30,"city":"New York"}',
-    '[{"id":1,"name":"Item 1"},{"id":2,"name":"Item 2"}]',
-    '{"user":{"profile":{"name":"John","settings":{"theme":"dark","notifications":true}}}}'
   ]
 
   return (

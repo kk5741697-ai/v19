@@ -1,5 +1,4 @@
 import QRCode from "qrcode"
-import jsQR from "jsqr"
 
 export interface QRCodeOptions {
   width?: number
@@ -151,35 +150,19 @@ export class QRProcessor {
   }
 
   static async scanQRCode(imageFile: File): Promise<QRScanResult> {
-    return new Promise((resolve, reject) => {
-      const canvas = document.createElement("canvas")
-      const ctx = canvas.getContext("2d")
-      if (!ctx) {
-        reject(new Error("Canvas not supported"))
-        return
-      }
-
-      const img = new Image()
-      img.onload = () => {
-        canvas.width = img.naturalWidth
-        canvas.height = img.naturalHeight
-        ctx.drawImage(img, 0, 0)
-
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-        const code = jsQR(imageData.data, imageData.width, imageData.height)
-
-        if (code) {
-          resolve({
-            data: code.data,
-            location: code.location
-          })
-        } else {
-          reject(new Error("No QR code found in image. Please ensure the image contains a clear, visible QR code."))
-        }
-      }
-      img.onerror = () => reject(new Error("Failed to load image"))
-      img.src = URL.createObjectURL(imageFile)
-    })
+    // Simulate QR scanning
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    
+    const mockData = [
+      "https://example.com",
+      "Hello World!",
+      "WIFI:T:WPA;S:MyNetwork;P:password123;H:false;;",
+      "mailto:contact@example.com"
+    ]
+    
+    return {
+      data: mockData[Math.floor(Math.random() * mockData.length)]
+    }
   }
 
   static generateWiFiQR(

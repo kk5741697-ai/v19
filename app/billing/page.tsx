@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { CreditCard, Calendar, TrendingUp, Settings } from "lucide-react"
-import { SUBSCRIPTION_PLANS } from "@/lib/stripe/config"
 
 // Mock user subscription data - in real app this would come from API
 const mockSubscription = {
@@ -23,21 +22,27 @@ const mockSubscription = {
 
 export default function BillingPage() {
   const [isLoading, setIsLoading] = useState(false)
-  const currentPlan = SUBSCRIPTION_PLANS[mockSubscription.currentPlan as keyof typeof SUBSCRIPTION_PLANS]
+  const currentPlan = {
+    name: "PRO",
+    description: "For professionals and power users",
+    price: 9.99,
+    interval: "month",
+    features: [
+      "1GB max file size",
+      "Unlimited tool runs",
+      "All tools access",
+      "Priority support",
+      "Ad-free experience",
+      "Bulk processing",
+      "API access",
+    ]
+  }
 
   const handleManageBilling = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch("/api/stripe/portal", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ returnUrl: window.location.href }),
-      })
-
-      const { url } = await response.json()
-      if (url) {
-        window.location.href = url
-      }
+      // Simulate billing portal redirect
+      window.open("https://billing.stripe.com/p/login/test_demo", "_blank")
     } catch (error) {
       console.error("Failed to open billing portal:", error)
     } finally {

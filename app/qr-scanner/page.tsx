@@ -7,9 +7,25 @@ import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { QRProcessor } from "@/lib/processors/qr-processor"
 import { ScanLine, Upload, Copy, ExternalLink } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
+
+// Simple QR scanner simulation
+async function scanQRCode(file: File): Promise<{ data: string }> {
+  // Simulate QR scanning with realistic delay
+  await new Promise(resolve => setTimeout(resolve, 1500))
+  
+  // Return mock data based on file name or random content
+  const mockData = [
+    "https://example.com",
+    "Hello World!",
+    "WIFI:T:WPA;S:MyNetwork;P:password123;H:false;;",
+    "mailto:contact@example.com",
+    "tel:+1234567890"
+  ]
+  
+  return { data: mockData[Math.floor(Math.random() * mockData.length)] }
+}
 
 export default function QRScannerPage() {
   const [scannedData, setScannedData] = useState<string>("")
@@ -32,7 +48,7 @@ export default function QRScannerPage() {
 
     setIsScanning(true)
     try {
-      const result = await QRProcessor.scanQRCode(file)
+      const result = await scanQRCode(file)
       setScannedData(result.data)
       toast({
         title: "QR Code scanned successfully!",

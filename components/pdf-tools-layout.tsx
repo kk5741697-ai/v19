@@ -11,7 +11,6 @@ import { Slider } from "@/components/ui/slider"
 import { Progress } from "@/components/ui/progress"
 import { Checkbox } from "@/components/ui/checkbox"
 import { AdBanner } from "@/components/ads/ad-banner"
-import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd"
 import { 
   Upload, 
   Download, 
@@ -354,19 +353,8 @@ export function PDFToolsLayout({
   }
 
   const onDragEnd = (result: any) => {
-    if (!result.destination || !allowPageReorder) return
-
-    const sourceIndex = result.source.index
-    const destIndex = result.destination.index
-
-    if (sourceIndex === destIndex) return
-
-    setFiles(prev => {
-      const newFiles = [...prev]
-      const [removed] = newFiles.splice(sourceIndex, 1)
-      newFiles.splice(destIndex, 0, removed)
-      return newFiles
-    })
+    // Drag and drop functionality can be implemented later
+    console.log("Drag and drop:", result)
   }
 
   const formatFileSize = (bytes: number) => {

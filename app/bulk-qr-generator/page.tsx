@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { QRProcessor } from "@/lib/processors/qr-processor"
+import { QRProcessor } from "@/lib/qr-processor"
 import { Grid, Download, Upload, FileText } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 
