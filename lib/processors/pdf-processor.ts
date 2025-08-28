@@ -254,7 +254,7 @@ export class PDFProcessor {
       // Note: PDF-lib doesn't support encryption directly
       // This creates a new PDF with a watermark indicating protection
       const protectedPdf = await PDFDocument.create()
-      const pages = await compressedPdf.copyPages(pdf, pdf.getPageIndices())
+      const pages = await protectedPdf.copyPages(pdf, pdf.getPageIndices())
       const helveticaFont = await protectedPdf.embedFont(StandardFonts.Helvetica)
 
       pages.forEach((page) => {
