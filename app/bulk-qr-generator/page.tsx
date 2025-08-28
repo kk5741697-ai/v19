@@ -130,14 +130,18 @@ export default function BulkQRGeneratorPage() {
     generatedQRs.forEach((qr) => {
       // Convert data URL to blob
       const base64Data = qr.dataURL.split(",")[1]
-      const binaryData = atob(base64Data)
-      const bytes = new Uint8Array(binaryData.length)
-      
-      for (let i = 0; i < binaryData.length; i++) {
-        bytes[i] = binaryData.charCodeAt(i)
+      try {
+        const binaryData = atob(base64Data)
+        const bytes = new Uint8Array(binaryData.length)
+        
+        for (let i = 0; i < binaryData.length; i++) {
+          bytes[i] = binaryData.charCodeAt(i)
+        }
+        
+        zip.file(qr.filename, bytes)
+      } catch (error) {
+        console.error(`Failed to process QR ${qr.filename}:`, error)
       }
-      
-      zip.file(qr.filename, bytes)
     })
 
     const zipBlob = await zip.generateAsync({ type: "blob" })
@@ -147,6 +151,11 @@ export default function BulkQRGeneratorPage() {
     link.download = "bulk-qr-codes.zip"
     link.click()
     URL.revokeObjectURL(url)
+    
+    toast({
+      title: "Download started",
+      description: "Bulk QR codes ZIP file downloaded"
+    })
   }
 
   return (

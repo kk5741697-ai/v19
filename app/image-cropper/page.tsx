@@ -116,18 +116,17 @@ async function cropImages(files: any[], options: any) {
         error: "No files to process",
       }
     }
+    
     const processedFiles = await Promise.all(
       files.map(async (file) => {
-        // FIXED: Better crop area handling with proper validation
         let cropArea = file.cropArea
         
         if (!cropArea || typeof cropArea !== 'object') {
-          // Use options or default crop area
           cropArea = {
             x: Math.max(0, options.positionX || 10),
             y: Math.max(0, options.positionY || 10),
-            width: Math.max(10, Math.min(90, options.cropWidth ? (options.cropWidth / file.dimensions.width) * 100 : 80)),
-            height: Math.max(10, Math.min(90, options.cropHeight ? (options.cropHeight / file.dimensions.height) * 100 : 80))
+            width: Math.max(10, Math.min(90, options.cropWidth ? Math.min(90, (options.cropWidth / (file.dimensions?.width || 800)) * 100) : 80)),
+            height: Math.max(10, Math.min(90, options.cropHeight ? Math.min(90, (options.cropHeight / (file.dimensions?.height || 600)) * 100) : 80))
           }
         }
         
@@ -148,15 +147,14 @@ async function cropImages(files: any[], options: any) {
         
         // Handle social media presets
         if (options.cropPreset && options.cropPreset !== "custom") {
-          const presetDimensions = this.getPresetDimensions(options.cropPreset)
+          const presetDimensions = getPresetDimensions(options.cropPreset)
           if (presetDimensions) {
             const { width: presetWidth, height: presetHeight } = presetDimensions
-            const imageAspectRatio = file.dimensions.width / file.dimensions.height
+            const imageAspectRatio = (file.dimensions?.width || 800) / (file.dimensions?.height || 600)
             const presetAspectRatio = presetWidth / presetHeight
             
             if (imageAspectRatio > presetAspectRatio) {
-              // Image is wider, fit by height
-              const newWidth = (presetAspectRatio * file.dimensions.height / file.dimensions.width) * 100
+              const newWidth = (presetAspectRatio * (file.dimensions?.height || 600) / (file.dimensions?.width || 800)) * 100
               cropArea = {
                 x: (100 - newWidth) / 2,
                 y: 0,
@@ -164,8 +162,7 @@ async function cropImages(files: any[], options: any) {
                 height: 100
               }
             } else {
-              // Image is taller, fit by width
-              const newHeight = (file.dimensions.width / presetAspectRatio / file.dimensions.height) * 100
+              const newHeight = ((file.dimensions?.width || 800) / presetAspectRatio / (file.dimensions?.height || 600)) * 100
               cropArea = {
                 x: 0,
                 y: (100 - newHeight) / 2,
@@ -212,19 +209,19 @@ async function cropImages(files: any[], options: any) {
       error: error instanceof Error ? error.message : "Failed to crop images",
     }
   }
-  
-  // Helper function for preset dimensions
-  static getPresetDimensions(preset: string) {
-    const presets: Record<string, { width: number; height: number }> = {
-      "instagram-post": { width: 1080, height: 1080 },
-      "instagram-story": { width: 1080, height: 1920 },
-      "facebook-post": { width: 1200, height: 630 },
-      "twitter-post": { width: 1200, height: 675 },
-      "youtube-thumbnail": { width: 1280, height: 720 },
-      "linkedin-post": { width: 1200, height: 627 }
-    }
-    return presets[preset]
+}
+
+// Helper function for preset dimensions
+function getPresetDimensions(preset: string) {
+  const presets: Record<string, { width: number; height: number }> = {
+    "instagram-post": { width: 1080, height: 1080 },
+    "instagram-story": { width: 1080, height: 1920 },
+    "facebook-post": { width: 1200, height: 630 },
+    "twitter-post": { width: 1200, height: 675 },
+    "youtube-thumbnail": { width: 1280, height: 720 },
+    "linkedin-post": { width: 1200, height: 627 }
   }
+  return presets[preset]
 }
 
 export default function ImageCropperPage() {

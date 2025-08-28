@@ -3,13 +3,14 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Heart, Menu, X, MoreHorizontal, ChevronDown, Wrench } from "lucide-react"
+import { Heart, Menu, X, MoreHorizontal, ChevronDown, Wrench, Search } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { SearchDialog } from "@/components/search/search-dialog"
 
 // Dynamic tools based on current domain
 const getMainTools = (hostname: string) => {
@@ -116,6 +117,7 @@ const getBrandConfig = (hostname: string) => {
 }
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [hostname, setHostname] = useState("pixoratools.com")
   
   // Get hostname on client side
@@ -129,8 +131,22 @@ export function Header() {
   const moreTools = getMoreTools(hostname)
   const brandConfig = getBrandConfig(hostname)
 
+  // Keyboard shortcut for search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setIsSearchOpen(true)
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
   return (
-    <header className="w-full bg-white/98 backdrop-blur-md border-b border-gray-200 sticky top-0 z-40 shadow-sm">
+    <>
+      <header className="w-full bg-white/98 backdrop-blur-md border-b border-gray-200 sticky top-0 z-40 shadow-sm">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex h-18 items-center justify-between">
           <Link href="/" className="flex items-center space-x-2">
@@ -176,6 +192,15 @@ export function Header() {
           </nav>
 
           <div className="hidden lg:flex items-center space-x-4">
+            <Button 
+              variant="outline" 
+              className="text-gray-700 hover:text-blue-600 font-medium px-4 py-2 rounded-lg hover:bg-gray-50"
+              onClick={() => setIsSearchOpen(true)}
+            >
+              <Search className="h-4 w-4 mr-2" />
+              Search
+              <kbd className="ml-2 text-xs bg-gray-100 px-1.5 py-0.5 rounded">⌘K</kbd>
+            </Button>
             <Button variant="ghost" className="text-gray-700 hover:text-blue-600 font-medium px-4 py-2 rounded-lg hover:bg-gray-50">
               Login
             </Button>
@@ -208,6 +233,9 @@ export function Header() {
           </Button>
         </div>
 
+
+      <SearchDialog open={isSearchOpen} onOpenChange={setIsSearchOpen} />
+    </>
         {isMenuOpen && (
           <div className="lg:hidden border-t bg-white/95 backdrop-blur-md">
             <div className="px-4 py-6 space-y-4">

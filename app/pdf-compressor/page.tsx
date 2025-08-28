@@ -43,7 +43,6 @@ async function compressPDF(files: any[], options: any) {
       }
     }
 
-    // FIXED: Enhanced compression options with proper validation
     const compressionOptions = {
       quality: Math.max(10, Math.min(100, options.quality || 80)),
       compressionLevel: options.compressionLevel,

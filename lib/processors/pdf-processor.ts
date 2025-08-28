@@ -206,15 +206,23 @@ export class PDFProcessor {
           from: i * pagesPerPart + 1,
           to: Math.min((i + 1) * pagesPerPart, totalPages)
         })).filter(range => range.from <= totalPages)
+      } else if (options.extractMode === "all") {
+        // Extract all pages as separate files
+        validRanges = Array.from({ length: totalPages }, (_, i) => ({
+          from: i + 1,
+          to: i + 1
+        }))
       } else {
         // Use provided ranges or default to all pages
-        validRanges = ranges && ranges.length > 0 
-          ? ranges.filter(range => 
-              range.from >= 1 && 
-              range.to <= totalPages && 
-              range.from <= range.to
-            )
-          : [{ from: 1, to: totalPages }]
+        if (ranges && ranges.length > 0) {
+          validRanges = ranges.filter(range => 
+            range.from >= 1 && 
+            range.to <= totalPages && 
+            range.from <= range.to
+          )
+        } else {
+          validRanges = [{ from: 1, to: totalPages }]
+        }
       }
 
       if (validRanges.length === 0) {

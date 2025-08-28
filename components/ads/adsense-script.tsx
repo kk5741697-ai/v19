@@ -1,7 +1,8 @@
 "use client"
 
 import Script from "next/script"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
+import { APP_CONFIG } from "@/lib/config"
 
 interface AdSenseScriptProps {
   publisherId: string
@@ -9,21 +10,35 @@ interface AdSenseScriptProps {
 }
 
 export function AdSenseScript({ publisherId, enableAutoAds = true }: AdSenseScriptProps) {
+  const [hasInitialized, setHasInitialized] = useState(false)
+
   useEffect(() => {
-    // Initialize AdSense after script loads
-    if (typeof window !== "undefined" && enableAutoAds) {
+    // Only initialize once and if ads are enabled
+    if (typeof window !== "undefined" && enableAutoAds && APP_CONFIG.enableAds && !hasInitialized) {
       try {
         (window as any).adsbygoogle = (window as any).adsbygoogle || []
-        ;(window as any).adsbygoogle.push({
-          google_ad_client: publisherId,
-          enable_page_level_ads: true,
-          overlays: { bottom: true }
-        })
+        
+        // Only push page level ads once per page
+        if (!(window as any).pageAdsInitialized) {
+          ;(window as any).adsbygoogle.push({
+            google_ad_client: publisherId,
+            enable_page_level_ads: true,
+            overlays: { bottom: true }
+          })
+          ;(window as any).pageAdsInitialized = true
+        }
+        
+        setHasInitialized(true)
       } catch (error) {
         console.warn("AdSense initialization failed:", error)
       }
     }
-  }, [publisherId, enableAutoAds])
+  }, [publisherId, enableAutoAds, hasInitialized])
+
+  // Don't render if ads are disabled
+  if (!APP_CONFIG.enableAds || !publisherId) {
+    return null
+  }
 
   return (
     <>

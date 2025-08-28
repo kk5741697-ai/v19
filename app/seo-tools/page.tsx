@@ -14,6 +14,13 @@ const seoTools = [
     category: "SEO Tools",
   },
   {
+    title: "Sitemap Generator",
+    description: "Generate XML sitemaps for better search engine indexing and crawling.",
+    href: "/sitemap-generator",
+    icon: TrendingUp,
+    category: "SEO Tools",
+  },
+  {
     title: "Keyword Density Checker",
     description: "Analyze keyword density and frequency in your content for SEO optimization.",
     href: "/keyword-density-checker",

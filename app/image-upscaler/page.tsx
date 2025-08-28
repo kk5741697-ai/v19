@@ -86,9 +86,9 @@ async function upscaleImages(files: any[], options: any) {
         error: "No files to process",
       }
     }
+    
     const processedFiles = await Promise.all(
       files.map(async (file) => {
-        // FIXED: Better scale factor handling
         let scaleFactor = 2
         if (options.scaleFactor) {
           if (typeof options.scaleFactor === 'string') {
@@ -101,8 +101,8 @@ async function upscaleImages(files: any[], options: any) {
         // Validate scale factor
         scaleFactor = Math.max(1.1, Math.min(10, scaleFactor))
         
-        const newWidth = Math.round(file.dimensions.width * scaleFactor)
-        const newHeight = Math.round(file.dimensions.height * scaleFactor)
+        const newWidth = Math.round((file.dimensions?.width || 800) * scaleFactor)
+        const newHeight = Math.round((file.dimensions?.height || 600) * scaleFactor)
 
         // Enhanced upscaling options
         const upscaleOptions = {
@@ -127,6 +127,7 @@ async function upscaleImages(files: any[], options: any) {
             contrast: (upscaleOptions.filters.contrast || 100) + (options.sharpen * 0.5)
           }
         }
+        
         const processedBlob = await ImageProcessor.resizeImage(
           file.originalFile || file.file,
           upscaleOptions

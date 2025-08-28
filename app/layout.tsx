@@ -3,7 +3,7 @@ import type { Metadata } from "next"
 import { Inter, Poppins } from "next/font/google"
 import "./globals.css"
 import { Toaster } from "@/components/ui/toaster"
-import { AdSenseScript } from "@/components/ads/adsense-script"
+import { APP_CONFIG } from "@/lib/config"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -50,14 +50,17 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head>
-        <meta name="google-adsense-account" content="ca-pub-your-publisher-id" />
-      </head>
+      {APP_CONFIG.enableAds && APP_CONFIG.adsensePublisherId && (
+        <head>
+          <meta name="google-adsense-account" content={APP_CONFIG.adsensePublisherId} />
+          <script
+            async
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${APP_CONFIG.adsensePublisherId}`}
+            crossOrigin="anonymous"
+          />
+        </head>
+      )}
       <body className={`${inter.variable} ${poppins.variable} antialiased`}>
-        <AdSenseScript 
-          publisherId="ca-pub-your-publisher-id"
-          enableAutoAds={true}
-        />
         {children}
         <Toaster />
       </body>

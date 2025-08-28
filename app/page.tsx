@@ -1,11 +1,15 @@
+"use client"
+
+import { useState } from "react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { AdSenseBanner } from "@/components/ads/adsense-banner"
+import { SearchDialog } from "@/components/search/search-dialog"
+import { APP_CONFIG } from "@/lib/config"
 import { 
   Maximize, Crop, FileImage, ArrowUpDown, Edit3, Zap, ImageIcon, Download, Palette, Upload, Archive,
-  FileType, QrCode, Code, TrendingUp, Wrench, Globe, Scissors, Lock, RefreshCw
+  FileType, QrCode, Code, TrendingUp, Wrench, Globe, Scissors, Lock, RefreshCw, Search
 } from "lucide-react"
 import Link from "next/link"
 
@@ -121,21 +125,15 @@ const toolCategories = [
 ]
 
 export default function HomePage() {
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <>
+      <div className="min-h-screen bg-gray-50">
       <Header />
 
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-blue-50 via-white to-purple-50 py-24 px-4 relative overflow-hidden">
-        {/* AdSense Banner */}
-        <div className="container mx-auto mb-8">
-          <AdSenseBanner 
-            adSlot="1234567890"
-            adFormat="horizontal"
-            className="max-w-4xl mx-auto"
-          />
-        </div>
-        
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-5">
           <div className="absolute top-10 left-10 w-32 h-32 bg-blue-500 rounded-full blur-3xl"></div>
@@ -161,6 +159,20 @@ export default function HomePage() {
             Your online photo editor is here and forever free! Compress, resize, crop, convert images and more with 300+ professional tools.
             <span className="font-semibold text-gray-800">Fast, secure, and completely free.</span>
           </p>
+
+          {/* Search Bar */}
+          <div className="max-w-2xl mx-auto mb-16">
+            <div 
+              className="relative cursor-pointer"
+              onClick={() => setIsSearchOpen(true)}
+            >
+              <div className="flex items-center space-x-3 bg-white/90 backdrop-blur-sm rounded-2xl border border-gray-200 shadow-lg px-6 py-4 hover:shadow-xl transition-all duration-300">
+                <Search className="h-6 w-6 text-gray-400" />
+                <span className="text-gray-500 text-lg flex-1 text-left">Search 300+ tools...</span>
+                <kbd className="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg text-sm font-medium">⌘K</kbd>
+              </div>
+            </div>
+          </div>
 
           {/* Tool Categories */}
           <div className="flex flex-wrap justify-center gap-4 mb-16">
@@ -216,14 +228,6 @@ export default function HomePage() {
 
       {/* Features Section */}
       <section className="py-16 px-4 bg-white">
-        <div className="max-w-6xl mx-auto mb-8">
-          <AdSenseBanner 
-            adSlot="1234567891"
-            adFormat="rectangle"
-            className="text-center"
-          />
-        </div>
-        
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-heading font-bold text-gray-900 mb-4">
@@ -374,5 +378,8 @@ export default function HomePage() {
 
       <Footer />
     </div>
+
+      <SearchDialog open={isSearchOpen} onOpenChange={setIsSearchOpen} />
+    </>
   )
 }

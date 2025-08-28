@@ -146,12 +146,6 @@
   }
 }
 
-/* Prevent ad blockers from hiding legitimate content */
-.content-wrapper {
-  position: relative;
-  z-index: 1;
-}
-
 /* Enhanced tool interface styles */
 .tool-interface {
   background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
@@ -159,4 +153,11 @@
 
 .processing-indicator {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Search styles */
+.search-highlight {
+  background-color: #fef3c7;
+  padding: 0 2px;
+  border-radius: 2px;
 }

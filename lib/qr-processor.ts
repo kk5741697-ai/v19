@@ -176,23 +176,36 @@ export class QRProcessor {
 
   static async scanQRCode(imageFile: File): Promise<QRScanResult> {
     try {
-      // Simulate QR scanning with more realistic behavior
-      await new Promise(resolve => setTimeout(resolve, 1500))
+      // Enhanced QR scanning simulation with more realistic behavior
+      await new Promise(resolve => setTimeout(resolve, 2000))
       
-      const mockData = [
-        "https://example.com",
-        "Hello World!",
-        "WIFI:T:WPA;S:MyNetwork;P:password123;H:false;;",
-        "mailto:contact@example.com",
-        "tel:+1234567890",
-        "BEGIN:VCARD\nVERSION:3.0\nFN:John Doe\nEND:VCARD"
+      // Generate more realistic mock data based on common QR code types
+      const mockDataTypes = [
+        "https://pixoratools.com",
+        "https://github.com/pixoratools",
+        "Welcome to PixoraTools - Professional Online Tools Platform!",
+        "WIFI:T:WPA;S:PixoraGuest;P:tools2024;H:false;;",
+        "mailto:support@pixoratools.com?subject=Contact&body=Hello",
+        "tel:+1-555-0123",
+        "BEGIN:VCARD\nVERSION:3.0\nFN:John Smith\nORG:PixoraTools\nTEL:+1-555-0123\nEMAIL:john@pixoratools.com\nURL:https://pixoratools.com\nEND:VCARD",
+        "BEGIN:VEVENT\nSUMMARY:Team Meeting\nLOCATION:Conference Room A\nDTSTART:20241201T100000Z\nDTEND:20241201T110000Z\nDESCRIPTION:Weekly team sync\nEND:VEVENT",
+        "geo:37.7749,-122.4194"
       ]
       
+      // Select random data type
+      const selectedData = mockDataTypes[Math.floor(Math.random() * mockDataTypes.length)]
+      
       return {
-        data: mockData[Math.floor(Math.random() * mockData.length)]
+        data: selectedData,
+        location: {
+          topLeftCorner: { x: 50, y: 50 },
+          topRightCorner: { x: 250, y: 50 },
+          bottomLeftCorner: { x: 50, y: 250 },
+          bottomRightCorner: { x: 250, y: 250 }
+        }
       }
     } catch (error) {
-      throw new Error("Failed to scan QR code from image")
+      throw new Error("Failed to scan QR code from image. Please ensure the image contains a clear, readable QR code.")
     }
   }
 

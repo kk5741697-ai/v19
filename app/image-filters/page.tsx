@@ -91,9 +91,9 @@ async function applyFilters(files: any[], options: any) {
         error: "No files to process",
       }
     }
+    
     const processedFiles = await Promise.all(
       files.map(async (file) => {
-        // FIXED: Enhanced filter processing with proper validation
         const filterOptions = {
           filters: {
             brightness: Math.max(0, Math.min(300, options.brightness || 100)),
@@ -106,6 +106,7 @@ async function applyFilters(files: any[], options: any) {
           outputFormat: options.outputFormat || "png",
           quality: Math.max(10, Math.min(100, options.quality || 95))
         }
+        
         const processedBlob = await ImageProcessor.applyFilters(
           file.originalFile || file.file,
           filterOptions

@@ -513,10 +513,6 @@ export function ImageToolsLayout({
         <div className="flex-1 overflow-hidden">
           {files.length === 0 ? (
             <div className="h-full flex flex-col">
-              <div className="p-4">
-                <AdBanner position="header" showLabel />
-              </div>
-              
               <div className="flex-1 flex items-center justify-center p-6">
                 <div 
                   className="max-w-lg w-full border-2 border-dashed border-gray-300 rounded-2xl flex flex-col items-center justify-center text-gray-500 cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all duration-300 p-16 group"
@@ -555,10 +551,6 @@ export function ImageToolsLayout({
             </div>
           ) : (
             <div className="h-full flex flex-col">
-              <div className="p-4 border-b">
-                <AdBanner position="inline" showLabel />
-              </div>
-
               <ScrollArea className="flex-1">
                 <div className="flex items-center justify-center p-6 min-h-full">
                   {currentFile && (
@@ -863,9 +855,6 @@ export function ImageToolsLayout({
             ))}
 
             {/* Ad Space */}
-            <div className="py-4">
-              <AdBanner position="sidebar" showLabel />
-            </div>
           </div>
         </ScrollArea>
 
