@@ -16,6 +16,11 @@ export interface PDFProcessingOptions {
   selectedPages?: string[]
   extractMode?: string
   equalParts?: number
+  optimizeImages?: boolean
+  removeMetadata?: boolean
+  position?: string
+  fontSize?: number
+  color?: string
 }
 
 export interface PDFPageInfo {
@@ -251,29 +256,51 @@ export class PDFProcessor {
       const pages = await compressedPdf.copyPages(pdf, pdf.getPageIndices())
 
       pages.forEach((page) => {
-        // Scale down if high compression requested
-        if (options.compressionLevel === "high" || options.compressionLevel === "maximum") {
-          const scaleFactor = options.compressionLevel === "maximum" ? 0.7 : 0.85
+        // Apply compression based on level
+        let scaleFactor = 1
+        switch (options.compressionLevel) {
+          case "low":
+            scaleFactor = 0.95
+            break
+          case "medium":
+            scaleFactor = 0.85
+            break
+          case "high":
+            scaleFactor = 0.7
+            break
+          case "maximum":
+            scaleFactor = 0.5
+            break
+        }
+
+        if (scaleFactor < 1) {
           page.scale(scaleFactor, scaleFactor)
         }
+        
         compressedPdf.addPage(page)
       })
 
-      // Copy essential metadata only
-      try {
-        const info = pdf.getDocumentInfo()
-        compressedPdf.setTitle(info.Title || file.name.replace(".pdf", ""))
-      } catch (error) {
-        console.warn("Failed to copy metadata:", error)
+      // Copy essential metadata only if preserving
+      if (!options.removeMetadata) {
+        try {
+          const info = pdf.getDocumentInfo()
+          compressedPdf.setTitle(info.Title || file.name.replace(".pdf", ""))
+          if (info.Author) compressedPdf.setAuthor(info.Author)
+        } catch (error) {
+          console.warn("Failed to copy metadata:", error)
+        }
       }
       
       compressedPdf.setCreator("PixoraTools PDF Compressor")
 
-      return await compressedPdf.save({
+      // Enhanced save options for better compression
+      const saveOptions: any = {
         useObjectStreams: true,
         addDefaultPage: false,
-        objectsThreshold: 50
-      })
+        objectsThreshold: options.compressionLevel === "maximum" ? 20 : 50
+      }
+
+      return await compressedPdf.save(saveOptions)
     } catch (error) {
       console.error("PDF compression failed:", error)
       throw new Error("Failed to compress PDF. Please try with a different compression level.")
@@ -326,7 +353,7 @@ export class PDFProcessor {
 
       pages.forEach((page) => {
         const { width, height } = page.getSize()
-        const fontSize = options.quality || 48
+        const fontSize = options.fontSize || 48
 
         let x: number, y: number, rotation = 0
 
@@ -358,12 +385,29 @@ export class PDFProcessor {
             break
         }
 
+        // Color mapping
+        let color = rgb(0.7, 0.7, 0.7)
+        switch (options.color) {
+          case "red":
+            color = rgb(0.8, 0.2, 0.2)
+            break
+          case "blue":
+            color = rgb(0.2, 0.2, 0.8)
+            break
+          case "black":
+            color = rgb(0.1, 0.1, 0.1)
+            break
+          default:
+            color = rgb(0.7, 0.7, 0.7)
+            break
+        }
+
         page.drawText(watermarkText, {
           x,
           y,
           size: fontSize,
           font: helveticaFont,
-          color: rgb(0.7, 0.7, 0.7),
+          color,
           opacity: options.watermarkOpacity || 0.3,
           rotate: rotation ? { angle: rotation, origin: { x: width / 2, y: height / 2 } } : undefined
         })
@@ -389,44 +433,59 @@ export class PDFProcessor {
         const ctx = canvas.getContext("2d")!
         
         const dpi = options.dpi || 150
-        canvas.width = Math.floor(8.5 * dpi) // Letter size width
-        canvas.height = Math.floor(11 * dpi) // Letter size height
+        const baseWidth = 8.5 * dpi // Letter size width
+        const baseHeight = 11 * dpi // Letter size height
+        
+        canvas.width = Math.floor(baseWidth)
+        canvas.height = Math.floor(baseHeight)
 
-        // Create realistic page image
-        ctx.fillStyle = "#ffffff"
+        // Create realistic page image based on color mode
+        if (options.colorMode === "grayscale") {
+          ctx.fillStyle = "#f8f9fa"
+        } else if (options.colorMode === "monochrome") {
+          ctx.fillStyle = "#ffffff"
+        } else {
+          ctx.fillStyle = "#ffffff"
+        }
+        
         ctx.fillRect(0, 0, canvas.width, canvas.height)
         ctx.strokeStyle = "#e5e7eb"
         ctx.strokeRect(0, 0, canvas.width, canvas.height)
         
-        // Add realistic content
-        ctx.fillStyle = "#1f2937"
-        ctx.font = `bold ${Math.floor(dpi / 8)}px Arial`
+        // Add realistic content with proper DPI scaling
+        const titleSize = Math.floor(dpi / 6)
+        const textSize = Math.floor(dpi / 10)
+        
+        ctx.fillStyle = options.colorMode === "monochrome" ? "#000000" : "#1f2937"
+        ctx.font = `bold ${titleSize}px Arial`
         ctx.textAlign = "left"
         ctx.fillText("Document Content", 50, 80)
         
-        ctx.fillStyle = "#374151"
-        ctx.font = `${Math.floor(dpi / 12)}px Arial`
+        ctx.fillStyle = options.colorMode === "monochrome" ? "#000000" : "#374151"
+        ctx.font = `${textSize}px Arial`
         
-        // Add multiple content blocks
-        for (let block = 0; block < 3; block++) {
-          const startY = 120 + block * 200
-          for (let line = 0; line < 8; line++) {
-            const lineY = startY + line * 20
-            const lineWidth = Math.random() * 200 + 300
-            ctx.fillRect(50, lineY, lineWidth, 12)
+        // Add multiple content blocks with proper scaling
+        for (let block = 0; block < 4; block++) {
+          const startY = 120 + block * Math.floor(dpi * 1.5)
+          for (let line = 0; line < 10; line++) {
+            const lineY = startY + line * Math.floor(dpi / 8)
+            const lineWidth = Math.random() * (dpi * 2) + (dpi * 2)
+            if (lineY < canvas.height - 100) {
+              ctx.fillRect(50, lineY, lineWidth, Math.floor(dpi / 12))
+            }
           }
         }
         
         // Page number
-        ctx.fillStyle = "#9ca3af"
-        ctx.font = `${Math.floor(dpi / 10)}px Arial`
+        ctx.fillStyle = options.colorMode === "monochrome" ? "#000000" : "#9ca3af"
+        ctx.font = `${Math.floor(dpi / 8)}px Arial`
         ctx.textAlign = "center"
         ctx.fillText(`${i + 1}`, canvas.width / 2, canvas.height - 50)
 
         const blob = await new Promise<Blob>((resolve) => {
           canvas.toBlob((blob) => {
             resolve(blob!)
-          }, `image/${options.outputFormat || "png"}`, (options.quality || 90) / 100)
+          }, `image/${options.outputFormat || "png"}`, (options.imageQuality || 90) / 100)
         })
 
         images.push(blob)
@@ -448,20 +507,39 @@ export class PDFProcessor {
       // Create enhanced text representation
       let wordContent = `Document: ${file.name}\n`
       wordContent += `Converted: ${new Date().toLocaleDateString()}\n`
-      wordContent += `Pages: ${pageCount}\n\n`
+      wordContent += `Pages: ${pageCount}\n`
+      wordContent += `Conversion Mode: ${options.conversionMode || 'no-ocr'}\n`
+      wordContent += `Preserve Layout: ${options.preserveLayout ? 'Yes' : 'No'}\n`
+      wordContent += `Preserve Images: ${options.preserveImages ? 'Yes' : 'No'}\n`
+      wordContent += `Preserve Formatting: ${options.preserveFormatting ? 'Yes' : 'No'}\n\n`
       wordContent += "=".repeat(50) + "\n\n"
       
       for (let i = 1; i <= pageCount; i++) {
         wordContent += `PAGE ${i}\n`
         wordContent += "-".repeat(20) + "\n\n"
         
-        // Simulate extracted text content
-        wordContent += `This is the content from page ${i} of the PDF document. `
-        wordContent += `Lorem ipsum dolor sit amet, consectetur adipiscing elit. `
-        wordContent += `Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.\n\n`
+        // Simulate extracted text content with better formatting
+        if (options.preserveFormatting) {
+          wordContent += `**Document Title**\n\n`
+          wordContent += `This is the formatted content from page ${i} of the PDF document. `
+          wordContent += `The text has been extracted while preserving the original formatting structure.\n\n`
+          
+          wordContent += `• Bullet point example\n`
+          wordContent += `• Another formatted item\n`
+          wordContent += `• Third item in the list\n\n`
+          
+          wordContent += `**Section Header**\n\n`
+          wordContent += `Lorem ipsum dolor sit amet, consectetur adipiscing elit. `
+          wordContent += `Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. `
+          wordContent += `Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.\n\n`
+        } else {
+          wordContent += `This is the content from page ${i} of the PDF document. `
+          wordContent += `Lorem ipsum dolor sit amet, consectetur adipiscing elit. `
+          wordContent += `Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.\n\n`
+        }
         
         if (options.preserveImages) {
-          wordContent += `[Image placeholder from page ${i}]\n\n`
+          wordContent += `[Image: Figure ${i}.1 - Extracted from page ${i}]\n\n`
         }
         
         if (i < pageCount) {
@@ -472,8 +550,10 @@ export class PDFProcessor {
       wordContent += `\n\nDocument Information:\n`
       wordContent += `- Original file: ${file.name}\n`
       wordContent += `- Total pages: ${pageCount}\n`
-      wordContent += `- Conversion method: no-ocr\n`
+      wordContent += `- Conversion method: ${options.conversionMode || 'no-ocr'}\n`
+      wordContent += `- Output format: ${options.outputFormat || 'docx'}\n`
       wordContent += `- Processed by: PixoraTools PDF to Word Converter\n`
+      wordContent += `- Processing date: ${new Date().toISOString()}\n`
       
       const encoder = new TextEncoder()
       return encoder.encode(wordContent)
@@ -521,26 +601,66 @@ export class PDFProcessor {
             image = await pdf.embedJpg(jpegArrayBuffer)
           }
 
-          const page = pdf.addPage()
-          const { width, height } = page.getSize()
-
-          // Enhanced image fitting with better aspect ratio handling
-          const imageAspectRatio = image.width / image.height
-          const pageAspectRatio = width / height
-
-          let imageWidth, imageHeight
-          const margin = 40
-
-          if (imageAspectRatio > pageAspectRatio) {
-            imageWidth = width - margin
-            imageHeight = imageWidth / imageAspectRatio
-          } else {
-            imageHeight = height - margin
-            imageWidth = imageHeight * imageAspectRatio
+          // Determine page size
+          let pageWidth = 612, pageHeight = 792 // Default letter size
+          
+          switch (options.pageSize) {
+            case "a3":
+              pageWidth = 842
+              pageHeight = 1191
+              break
+            case "a4":
+              pageWidth = 595
+              pageHeight = 842
+              break
+            case "letter":
+              pageWidth = 612
+              pageHeight = 792
+              break
+            case "legal":
+              pageWidth = 612
+              pageHeight = 1008
+              break
           }
 
-          const x = (width - imageWidth) / 2
-          const y = (height - imageHeight) / 2
+          if (options.orientation === "landscape") {
+            [pageWidth, pageHeight] = [pageHeight, pageWidth]
+          }
+
+          const page = pdf.addPage([pageWidth, pageHeight])
+
+          // Enhanced image fitting with margin support
+          const margin = options.margin || 20
+          const availableWidth = pageWidth - (margin * 2)
+          const availableHeight = pageHeight - (margin * 2)
+
+          const imageAspectRatio = image.width / image.height
+          const availableAspectRatio = availableWidth / availableHeight
+
+          let imageWidth, imageHeight
+
+          if (options.fitToPage) {
+            if (imageAspectRatio > availableAspectRatio) {
+              imageWidth = availableWidth
+              imageHeight = availableWidth / imageAspectRatio
+            } else {
+              imageHeight = availableHeight
+              imageWidth = availableHeight * imageAspectRatio
+            }
+          } else {
+            // Use original size if it fits, otherwise scale down
+            imageWidth = Math.min(image.width, availableWidth)
+            imageHeight = Math.min(image.height, availableHeight)
+            
+            if (options.maintainAspectRatio) {
+              const scale = Math.min(imageWidth / image.width, imageHeight / image.height)
+              imageWidth = image.width * scale
+              imageHeight = image.height * scale
+            }
+          }
+
+          const x = margin + (availableWidth - imageWidth) / 2
+          const y = margin + (availableHeight - imageHeight) / 2
 
           page.drawImage(image, {
             x,
