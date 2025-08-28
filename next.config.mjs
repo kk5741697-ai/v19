@@ -9,6 +9,28 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  experimental: {
+    serverComponentsExternalPackages: ['pdf-lib', 'qrcode', 'jsqr'],
+  },
+  webpack: (config, { isServer }) => {
+    // Fix for Next.js 15.x workUnitAsyncStorage issue
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        crypto: false,
+      }
+    }
+    
+    // Handle PDF-lib and other dependencies
+    config.externals = config.externals || []
+    if (isServer) {
+      config.externals.push('canvas', 'jsdom')
+    }
+    
+    return config
+  },
   async rewrites() {
     return [
       // Domain-specific rewrites for tool-focused domains
@@ -20,7 +42,7 @@ const nextConfig = {
             value: 'pixorapdf.com',
           },
         ],
-        destination: '/domains/pdf/:path*',
+        destination: '/pdf-tools/:path*',
       },
       {
         source: '/:path*',
@@ -30,7 +52,7 @@ const nextConfig = {
             value: 'pixoraimg.com',
           },
         ],
-        destination: '/domains/image/:path*',
+        destination: '/image-tools/:path*',
       },
       {
         source: '/:path*',
@@ -40,7 +62,7 @@ const nextConfig = {
             value: 'pixoraqrcode.com',
           },
         ],
-        destination: '/domains/qr/:path*',
+        destination: '/qr-tools/:path*',
       },
       {
         source: '/:path*',
@@ -50,7 +72,7 @@ const nextConfig = {
             value: 'pixoracode.com',
           },
         ],
-        destination: '/domains/code/:path*',
+        destination: '/text-tools/:path*',
       },
       {
         source: '/:path*',
@@ -60,7 +82,7 @@ const nextConfig = {
             value: 'pixoraseo.com',
           },
         ],
-        destination: '/domains/seo/:path*',
+        destination: '/seo-tools/:path*',
       },
       {
         source: '/:path*',
@@ -70,7 +92,7 @@ const nextConfig = {
             value: 'pixoranet.com',
           },
         ],
-        destination: '/domains/network/:path*',
+        destination: '/utilities/:path*',
       },
       {
         source: '/:path*',
@@ -80,7 +102,7 @@ const nextConfig = {
             value: 'pixorautilities.com',
           },
         ],
-        destination: '/domains/utilities/:path*',
+        destination: '/utilities/:path*',
       },
     ];
   },
