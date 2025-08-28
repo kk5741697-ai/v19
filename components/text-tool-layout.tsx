@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { Header } from "@/components/header"
+import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -23,7 +25,10 @@ import {
   Share2,
   Heart,
   AlertCircle,
-  FileText
+  FileText,
+  ArrowLeft,
+  Maximize2,
+  Minimize2
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 
@@ -74,6 +79,7 @@ export function TextToolLayout({
   const [error, setError] = useState("")
   const [stats, setStats] = useState<any>(null)
   const [toolOptions, setToolOptions] = useState<Record<string, any>>({})
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
   // Initialize options with defaults
   useEffect(() => {
@@ -158,17 +164,24 @@ export function TextToolLayout({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b">
-        <div className="container mx-auto px-4 py-4">
+      <Header />
+
+      <div className="container mx-auto px-4 py-6">
+        {/* Header */}
+        <div className="mb-6">
           <div className="flex items-center justify-center space-x-2 mb-4">
             <span className="text-2xl font-bold text-gray-900">🤍</span>
             <span className="text-2xl font-bold text-gray-900">Code</span>
             <Heart className="h-6 w-6 text-teal-500 fill-teal-500" />
             <span className="text-2xl font-bold text-gray-900">Beautify</span>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2 text-center">{title}</h1>
-          <div className="flex items-center justify-center space-x-4 mb-4">
+          
+          <div className="text-center mb-6">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">{title}</h1>
+            <p className="text-gray-600 max-w-2xl mx-auto">{description}</p>
+          </div>
+
+          <div className="flex items-center justify-center space-x-4 mb-6">
             <Button variant="ghost" className="text-blue-600">
               <Heart className="h-4 w-4 mr-2" />
               Add to Fav
@@ -181,73 +194,73 @@ export function TextToolLayout({
             </Button>
           </div>
         </div>
-      </div>
 
-      {/* Main Interface */}
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+        {/* Main Interface */}
+        <div className={`grid gap-6 mb-8 ${isFullscreen ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2'}`}>
           {/* Input Panel */}
-          <div className="lg:col-span-2">
-            <Card>
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Button variant="ghost" size="sm">
-                      <Settings className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm">
-                      <RefreshCw className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => copyToClipboard(input)}>
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => downloadFile(input, `input${getFileExtension()}`)}>
-                      <Download className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setInput("")}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <div className="text-sm text-gray-500">Input</div>
+          <Card className="h-full">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Button variant="ghost" size="sm">
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm">
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => copyToClipboard(input)}>
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => downloadFile(input, `input${getFileExtension()}`)}>
+                    <Download className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setInput("")}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => setIsFullscreen(!isFullscreen)}
+                  >
+                    {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                  </Button>
                 </div>
-                
-                <Tabs defaultValue="file" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="file">
-                      <FileText className="h-4 w-4 mr-2" />
-                      File
-                    </TabsTrigger>
-                    <TabsTrigger value="url">
-                      <Link className="h-4 w-4 mr-2" />
-                      URL
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </CardHeader>
-              <CardContent>
-                <Textarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder={placeholder}
-                  className="min-h-[400px] font-mono text-sm resize-none border-0 focus:ring-0"
-                />
-                <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
-                  <span>Ln: {input.split('\n').length} Col: {input.length}</span>
-                  <div className="flex space-x-4">
-                    <span>{title.includes('JSON') ? 'JSON' : title.includes('XML') ? 'XML' : 'TEXT'}</span>
-                    <span>UTF-8</span>
-                  </div>
+                <div className="text-sm text-gray-500">Input</div>
+              </div>
+              
+              <Tabs defaultValue="file" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="file">
+                    <FileText className="h-4 w-4 mr-2" />
+                    File
+                  </TabsTrigger>
+                  <TabsTrigger value="url">
+                    <Link className="h-4 w-4 mr-2" />
+                    URL
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </CardHeader>
+            <CardContent>
+              <Textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={placeholder}
+                className="min-h-[400px] font-mono text-sm resize-none border-0 focus:ring-0"
+              />
+              <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
+                <span>Ln: {input.split('\n').length} Col: {input.length}</span>
+                <div className="flex space-x-4">
+                  <span>{title.includes('JSON') ? 'JSON' : title.includes('XML') ? 'XML' : 'TEXT'}</span>
+                  <span>UTF-8</span>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Output Panel */}
-          <div className="lg:col-span-2">
-            <Card>
+          {!isFullscreen && (
+            <Card className="h-full">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
@@ -306,10 +319,10 @@ export function TextToolLayout({
                 </div>
               </CardContent>
             </Card>
-          </div>
+          )}
         </div>
 
-        {/* Simplified Tool Options */}
+        {/* Options Panel */}
         {options.length > 0 && (
           <Card className="mb-8">
             <CardHeader>
@@ -317,7 +330,6 @@ export function TextToolLayout({
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Show only first 3 most important options */}
                 {options.slice(0, 3).map((option) => (
                   <div key={option.key} className="space-y-2">
                     <Label className="text-sm font-medium">{option.label}</Label>
@@ -441,6 +453,8 @@ export function TextToolLayout({
           </div>
         )}
       </div>
+
+      <Footer />
     </div>
   )
 }

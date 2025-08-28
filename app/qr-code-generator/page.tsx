@@ -215,7 +215,7 @@ export default function QRCodeGeneratorPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Sidebar - Options */}
           <div className="lg:col-span-1 space-y-4">
             {/* Content Type Tabs */}
@@ -515,7 +515,7 @@ export default function QRCodeGeneratorPage() {
           </div>
 
           {/* Main Canvas Area */}
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-2">
             <Card className="h-full">
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">

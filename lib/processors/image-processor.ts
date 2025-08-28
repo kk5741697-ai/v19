@@ -543,6 +543,7 @@ Processing time: 2.8 seconds`
     return { x, y, width, height }
   }
 
+
   static async rotateImage(file: File, options: ImageProcessingOptions): Promise<Blob> {
     return new Promise((resolve, reject) => {
       const canvas = document.createElement("canvas")

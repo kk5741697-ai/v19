@@ -482,7 +482,44 @@ export function ImageToolsLayout({
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {/* Multiple Files Grid */}
+                    {/* Image Preview and Crop Interface */}
+                    {toolType === "crop" && selectedFile ? (
+                      <div className="space-y-4">
+                        <div className="bg-white border rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-semibold">Crop Options</h3>
+                            <div className="flex items-center space-x-2">
+                              <Label className="text-sm">Width (px)</Label>
+                              <Input
+                                type="number"
+                                value={toolOptions.cropWidth || 800}
+                                onChange={(e) => setToolOptions(prev => ({ ...prev, cropWidth: Number(e.target.value) }))}
+                                className="w-20"
+                              />
+                              <Label className="text-sm">Height (px)</Label>
+                              <Input
+                                type="number"
+                                value={toolOptions.cropHeight || 600}
+                                onChange={(e) => setToolOptions(prev => ({ ...prev, cropHeight: Number(e.target.value) }))}
+                                className="w-20"
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="relative inline-block">
+                            <img
+                              src={selectedFile.preview}
+                              alt={selectedFile.name}
+                              className="max-w-full h-auto border rounded"
+                              style={{ maxHeight: "400px" }}
+                            />
+                            {/* Crop overlay would go here in a real implementation */}
+                            <div className="absolute inset-0 border-2 border-dashed border-blue-500 opacity-50 pointer-events-none"></div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Multiple Files Grid */
                     <ScrollArea className="h-64 sm:h-96">
                       <div className={`grid gap-2 sm:gap-4 ${
                         viewMode === "grid" 
@@ -535,6 +572,7 @@ export function ImageToolsLayout({
                         ))}
                       </div>
                     </ScrollArea>
+                    )}
                   </div>
                 )}
 
@@ -578,6 +616,59 @@ export function ImageToolsLayout({
                 </Card>
               )}
 
+              {/* Crop Options for Crop Tool */}
+              {toolType === "crop" && selectedFile && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Crop Options</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm">Width (px)</Label>
+                        <Input
+                          type="number"
+                          value={toolOptions.cropWidth || 800}
+                          onChange={(e) => setToolOptions(prev => ({ ...prev, cropWidth: Number(e.target.value) }))}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-sm">Height (px)</Label>
+                        <Input
+                          type="number"
+                          value={toolOptions.cropHeight || 600}
+                          onChange={(e) => setToolOptions(prev => ({ ...prev, cropHeight: Number(e.target.value) }))}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm">Position X (px)</Label>
+                        <Input
+                          type="number"
+                          value={toolOptions.positionX || 0}
+                          onChange={(e) => setToolOptions(prev => ({ ...prev, positionX: Number(e.target.value) }))}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-sm">Position Y (px)</Label>
+                        <Input
+                          type="number"
+                          value={toolOptions.positionY || 0}
+                          onChange={(e) => setToolOptions(prev => ({ ...prev, positionY: Number(e.target.value) }))}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <p className="text-sm text-blue-800">
+                        All images will be cropped to {toolOptions.cropWidth || 800}×{toolOptions.cropHeight || 600} pixels.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
               {/* Tool Options */}
               {Object.keys(groupedOptions).length > 0 && (
                 <Card>

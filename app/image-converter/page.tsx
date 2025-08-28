@@ -55,6 +55,16 @@ const convertOptions = [
     section: "Transform",
   },
   {
+    key: "customRotation",
+    label: "Custom Rotation (degrees)",
+    type: "slider" as const,
+    defaultValue: 0,
+    min: -180,
+    max: 180,
+    step: 1,
+    section: "Transform",
+  },
+  {
     key: "flipHorizontal",
     label: "Flip Horizontal",
     type: "checkbox" as const,
@@ -150,7 +160,7 @@ async function convertImages(files: any[], options: any) {
 
     const processedFiles = await Promise.all(
       files.map(async (file) => {
-        const rotation = parseInt(options.rotation) || 0
+        const rotation = options.customRotation !== 0 ? options.customRotation : parseInt(options.rotation) || 0
 
         const processedBlob = await ImageProcessor.convertFormat(
           file.originalFile || file.file,
@@ -160,6 +170,7 @@ async function convertImages(files: any[], options: any) {
             backgroundColor: options.backgroundColor,
             outputFormat: options.outputFormat as "jpeg" | "png" | "webp",
             rotation,
+            customRotation: options.customRotation,
             flipHorizontal: options.flipHorizontal,
             flipVertical: options.flipVertical,
             width: options.resizeWidth > 0 ? options.resizeWidth : undefined,

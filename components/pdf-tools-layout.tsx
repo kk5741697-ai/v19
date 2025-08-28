@@ -479,6 +479,49 @@ export function PDFToolsLayout({
                           </div>
                         </div>
 
+                        {/* Extract Mode Selection for Split Tool */}
+                        {toolType === "split" && (
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+                            <div className="flex items-center justify-center space-x-4">
+                              <Button
+                                variant={extractMode === "all" ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setExtractMode("all")}
+                                className="flex flex-col items-center p-4 h-auto"
+                              >
+                                <FileText className="h-6 w-6 mb-2" />
+                                <span className="text-xs">Range</span>
+                              </Button>
+                              <Button
+                                variant={extractMode === "pages" ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setExtractMode("pages")}
+                                className="flex flex-col items-center p-4 h-auto"
+                              >
+                                <Grid className="h-6 w-6 mb-2" />
+                                <span className="text-xs">Pages</span>
+                              </Button>
+                              <Button
+                                variant={extractMode === "size" ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setExtractMode("size")}
+                                className="flex flex-col items-center p-4 h-auto"
+                              >
+                                <ArrowUpDown className="h-6 w-6 mb-2" />
+                                <span className="text-xs">Size</span>
+                              </Button>
+                            </div>
+                            
+                            <div className="text-center">
+                              <p className="text-sm font-medium text-blue-900">Extract mode:</p>
+                              <p className="text-sm text-blue-700">
+                                {extractMode === "all" && "Extract all pages"}
+                                {extractMode === "pages" && "Select pages"}
+                                {extractMode === "size" && "Split by size"}
+                              </p>
+                            </div>
+                          </div>
+                        )}
                         <ScrollArea className="h-64 sm:h-96">
                           <div className={`grid gap-2 sm:gap-4 ${
                             viewMode === "grid" 
