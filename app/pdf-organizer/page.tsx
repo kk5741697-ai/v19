@@ -57,30 +57,10 @@ async function organizePDF(files: any[], options: any) {
 
     const file = files[0]
     
-    // Create page ranges based on sort option
-    let pageOrder: number[] = []
-    
-    switch (options.sortBy) {
-      case "reverse":
-        pageOrder = Array.from({ length: file.pageCount }, (_, i) => file.pageCount - i)
-        break
-      case "odd":
-        const oddPages = Array.from({ length: Math.ceil(file.pageCount / 2) }, (_, i) => i * 2 + 1)
-        const evenPages = Array.from({ length: Math.floor(file.pageCount / 2) }, (_, i) => (i + 1) * 2)
-        pageOrder = [...oddPages, ...evenPages]
-        break
-      case "even":
-        const evenFirst = Array.from({ length: Math.floor(file.pageCount / 2) }, (_, i) => (i + 1) * 2)
-        const oddAfter = Array.from({ length: Math.ceil(file.pageCount / 2) }, (_, i) => i * 2 + 1)
-        pageOrder = [...evenFirst, ...oddAfter]
-        break
-      default: // custom
-        pageOrder = file.pages.map((p: any) => p.pageNumber)
-        break
-    }
-
-    const ranges = pageOrder.map(pageNum => ({ from: pageNum, to: pageNum }))
-    const organizedResults = await PDFProcessor.splitPDF(file.originalFile || file.file, ranges)
+    const organizedResults = await PDFProcessor.splitPDF(file.originalFile || file.file, [], {
+      ...options,
+      extractMode: "all"
+    })
 
     // Merge back into single PDF
     const tempFiles = organizedResults.map((bytes, index) => {

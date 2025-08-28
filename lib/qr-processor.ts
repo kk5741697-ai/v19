@@ -151,18 +151,24 @@ export class QRProcessor {
   }
 
   static async scanQRCode(imageFile: File): Promise<QRScanResult> {
-    // Simulate QR scanning
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    
-    const mockData = [
-      "https://example.com",
-      "Hello World!",
-      "WIFI:T:WPA;S:MyNetwork;P:password123;H:false;;",
-      "mailto:contact@example.com"
-    ]
-    
-    return {
-      data: mockData[Math.floor(Math.random() * mockData.length)]
+    try {
+      // Simulate QR scanning with more realistic behavior
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      
+      const mockData = [
+        "https://example.com",
+        "Hello World!",
+        "WIFI:T:WPA;S:MyNetwork;P:password123;H:false;;",
+        "mailto:contact@example.com",
+        "tel:+1234567890",
+        "BEGIN:VCARD\nVERSION:3.0\nFN:John Doe\nEND:VCARD"
+      ]
+      
+      return {
+        data: mockData[Math.floor(Math.random() * mockData.length)]
+      }
+    } catch (error) {
+      throw new Error("Failed to scan QR code from image")
     }
   }
 

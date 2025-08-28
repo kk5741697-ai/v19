@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider"
 import { Progress } from "@/components/ui/progress"
 import { Checkbox } from "@/components/ui/checkbox"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { AdBanner } from "@/components/ads/ad-banner"
 import { 
   Upload, 
@@ -22,16 +23,12 @@ import {
   X,
   ArrowLeft,
   CheckCircle,
-  Undo,
-  Redo,
   RefreshCw,
   ZoomIn,
   ZoomOut,
   Move,
   Crop,
   Maximize2,
-  Minimize2,
-  Settings,
   AlertCircle,
   Info
 } from "lucide-react"
@@ -107,11 +104,9 @@ export function ImageToolsLayout({
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 })
   const [isPanning, setIsPanning] = useState(false)
   const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 })
-  const [cropHandles, setCropHandles] = useState<{ [key: string]: { x: number; y: number } }>({})
   const [isResizing, setIsResizing] = useState<string | null>(null)
-  const [aspectRatioLocked, setAspectRatioLocked] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const canvasRef = useRef<HTMLDivElement>(null)
+  const imageRef = useRef<HTMLImageElement>(null)
 
   // Initialize options with defaults
   useEffect(() => {
@@ -121,57 +116,6 @@ export function ImageToolsLayout({
     })
     setToolOptions(defaultOptions)
   }, [options])
-
-  // Improved auto-save with quota management
-  useEffect(() => {
-    if (files.length > 0 || Object.keys(toolOptions).length > 0) {
-      try {
-        // Create minimal save data to avoid quota issues
-        const saveData = {
-          fileCount: files.length,
-          toolOptions,
-          timestamp: Date.now()
-        }
-        
-        const saveString = JSON.stringify(saveData)
-        
-        // Check if we're approaching localStorage quota (reduced limit)
-        if (saveString.length > 100000) { // 100KB limit
-          console.warn("Auto-save data too large, skipping")
-          return
-        }
-        
-        localStorage.setItem(`pixora-${toolType}-autosave`, saveString)
-      } catch (error) {
-        if (error instanceof Error && error.name === 'QuotaExceededError') {
-          // Clear ALL auto-saves to free up space immediately
-          Object.keys(localStorage).forEach(key => {
-            if (key.startsWith('pixora-')) {
-              try {
-                localStorage.removeItem(key)
-              } catch {
-                localStorage.removeItem(key)
-              }
-            }
-          })
-          
-          // Try to save again with minimal data
-          try {
-            const minimalSave = { timestamp: Date.now() }
-            localStorage.setItem(`pixora-${toolType}-autosave`, JSON.stringify(minimalSave))
-          } catch {
-            // If still failing, disable auto-save completely
-            console.warn("Auto-save completely disabled due to storage constraints")
-          }
-          
-          toast({
-            title: "Storage cleared",
-            description: "Browser storage was full and has been cleared",
-          })
-        }
-      }
-    }
-  }, [files.length, toolOptions, toolType])
 
   const handleFileUpload = async (uploadedFiles: FileList | null) => {
     if (!uploadedFiles) return
@@ -297,117 +241,87 @@ export function ImageToolsLayout({
     })
     setToolOptions(defaultOptions)
     
-    try {
-      localStorage.removeItem(`pixora-${toolType}-autosave`)
-    } catch (error) {
-      console.warn("Failed to clear auto-save:", error)
-    }
-    
     toast({
       title: "Tool reset",
       description: "All files and settings have been reset"
     })
   }
 
-  // Enhanced crop functionality with precise pixel coordinates
+  // Fixed crop functionality with proper coordinates
   const handleCropStart = (e: React.MouseEvent<HTMLImageElement>) => {
     if (toolType !== "crop") return
     
-    const target = e.target as HTMLElement
-    if (target.classList.contains('crop-handle')) {
-      setIsResizing(target.dataset.handle || null)
-      return
-    }
+    e.preventDefault()
+    e.stopPropagation()
     
     const img = e.currentTarget
     const rect = img.getBoundingClientRect()
+    
+    // Calculate relative position within the image
     const x = ((e.clientX - rect.left) / rect.width) * 100
     const y = ((e.clientY - rect.top) / rect.height) * 100
     
-    setDragStart({ x, y })
+    // Ensure coordinates are within bounds
+    const boundedX = Math.max(0, Math.min(100, x))
+    const boundedY = Math.max(0, Math.min(100, y))
+    
+    setDragStart({ x: boundedX, y: boundedY })
     setIsDragging(true)
-    setCropSelection({ x, y, width: 0, height: 0 })
+    setCropSelection({ x: boundedX, y: boundedY, width: 0, height: 0 })
   }
 
   const handleCropMove = (e: React.MouseEvent<HTMLImageElement>) => {
-    if (toolType !== "crop") return
+    if (toolType !== "crop" || !isDragging || !dragStart) return
     
-    if (isResizing && cropSelection) {
-      const img = e.currentTarget
-      const rect = img.getBoundingClientRect()
-      const x = ((e.clientX - rect.left) / rect.width) * 100
-      const y = ((e.clientY - rect.top) / rect.height) * 100
-      
-      let newSelection = { ...cropSelection }
-      
-      switch (isResizing) {
-        case 'nw':
-          newSelection.width += newSelection.x - x
-          newSelection.height += newSelection.y - y
-          newSelection.x = x
-          newSelection.y = y
-          break
-        case 'ne':
-          newSelection.width = x - newSelection.x
-          newSelection.height += newSelection.y - y
-          newSelection.y = y
-          break
-        case 'sw':
-          newSelection.width += newSelection.x - x
-          newSelection.height = y - newSelection.y
-          newSelection.x = x
-          break
-        case 'se':
-          newSelection.width = x - newSelection.x
-          newSelection.height = y - newSelection.y
-          break
-      }
-      
-      // Maintain aspect ratio if locked
-      if (aspectRatioLocked && toolOptions.aspectRatio !== "free") {
-        const ratio = parseFloat(toolOptions.aspectRatio?.split(':')[0] || "1") / parseFloat(toolOptions.aspectRatio?.split(':')[1] || "1")
-        if (newSelection.width / newSelection.height > ratio) {
-          newSelection.width = newSelection.height * ratio
-        } else {
-          newSelection.height = newSelection.width / ratio
-        }
-      }
-      
-      setCropSelection(newSelection)
-      return
-    }
-    
-    if (!isDragging || !dragStart) return
+    e.preventDefault()
     
     const img = e.currentTarget
     const rect = img.getBoundingClientRect()
     const x = ((e.clientX - rect.left) / rect.width) * 100
     const y = ((e.clientY - rect.top) / rect.height) * 100
     
+    // Ensure coordinates are within bounds
+    const boundedX = Math.max(0, Math.min(100, x))
+    const boundedY = Math.max(0, Math.min(100, y))
+    
     let newSelection = {
-      x: Math.min(dragStart.x, x),
-      y: Math.min(dragStart.y, y),
-      width: Math.abs(x - dragStart.x),
-      height: Math.abs(y - dragStart.y)
+      x: Math.min(dragStart.x, boundedX),
+      y: Math.min(dragStart.y, boundedY),
+      width: Math.abs(boundedX - dragStart.x),
+      height: Math.abs(boundedY - dragStart.y)
     }
     
-    // Apply aspect ratio constraint
+    // Apply aspect ratio constraint if set
     if (toolOptions.aspectRatio && toolOptions.aspectRatio !== "free") {
-      const ratio = parseFloat(toolOptions.aspectRatio.split(':')[0]) / parseFloat(toolOptions.aspectRatio.split(':')[1])
-      if (newSelection.width / newSelection.height > ratio) {
-        newSelection.width = newSelection.height * ratio
+      const [ratioW, ratioH] = toolOptions.aspectRatio.split(':').map(Number)
+      const targetRatio = ratioW / ratioH
+      
+      if (newSelection.width / newSelection.height > targetRatio) {
+        newSelection.width = newSelection.height * targetRatio
       } else {
-        newSelection.height = newSelection.width / ratio
+        newSelection.height = newSelection.width / targetRatio
+      }
+      
+      // Ensure selection stays within bounds
+      if (newSelection.x + newSelection.width > 100) {
+        newSelection.width = 100 - newSelection.x
+        newSelection.height = newSelection.width / targetRatio
+      }
+      if (newSelection.y + newSelection.height > 100) {
+        newSelection.height = 100 - newSelection.y
+        newSelection.width = newSelection.height * targetRatio
       }
     }
     
     setCropSelection(newSelection)
   }
 
-  const handleCropEnd = () => {
+  const handleCropEnd = (e: React.MouseEvent) => {
+    if (toolType !== "crop") return
+    
+    e.preventDefault()
     setIsDragging(false)
     setDragStart(null)
-    setIsResizing(null)
     
     if (cropSelection && selectedFile) {
       setFiles(prev => prev.map(file => 
@@ -420,13 +334,13 @@ export function ImageToolsLayout({
 
   // Pan and zoom functionality
   const handlePanStart = (e: React.MouseEvent) => {
-    if (toolType === "crop") return
+    if (toolType === "crop" || isDragging) return
     setIsPanning(true)
     setLastPanPoint({ x: e.clientX, y: e.clientY })
   }
 
   const handlePanMove = (e: React.MouseEvent) => {
-    if (!isPanning) return
+    if (!isPanning || toolType === "crop") return
     
     const deltaX = e.clientX - lastPanPoint.x
     const deltaY = e.clientY - lastPanPoint.y
@@ -645,164 +559,131 @@ export function ImageToolsLayout({
                 <AdBanner position="inline" showLabel />
               </div>
 
-              <div 
-                ref={canvasRef}
-                className="flex-1 flex items-center justify-center p-6 relative overflow-hidden bg-gray-100 group"
-                onMouseDown={handlePanStart}
-                onMouseMove={handlePanMove}
-                onMouseUp={handlePanEnd}
-                onMouseLeave={handlePanEnd}
-                style={{ cursor: isPanning ? "grabbing" : toolType === "crop" ? "crosshair" : "grab" }}
-              >
-                {currentFile && (
-                  <div className="relative">
-                    <div 
-                      className="relative inline-block transition-transform duration-200"
-                      style={{ 
-                        transform: `scale(${zoomLevel / 100}) translate(${panOffset.x}px, ${panOffset.y}px)`,
-                        maxWidth: "calc(100vw - 400px)",
-                        maxHeight: "calc(100vh - 200px)"
-                      }}
-                    >
-                      <img
-                        src={currentFile.processedPreview || currentFile.preview}
-                        alt={currentFile.name}
-                        className="w-full h-full object-contain border border-gray-300 rounded-lg shadow-lg bg-white"
+              <ScrollArea className="flex-1">
+                <div className="flex items-center justify-center p-6 min-h-full">
+                  {currentFile && (
+                    <div className="relative group">
+                      <div 
+                        className="relative inline-block transition-transform duration-200 select-none"
                         style={{ 
-                          maxWidth: "100%",
-                          maxHeight: "100%",
-                          userSelect: "none",
-                          pointerEvents: toolType === "crop" ? "auto" : "none"
+                          transform: `scale(${zoomLevel / 100}) translate(${panOffset.x}px, ${panOffset.y}px)`,
+                          maxWidth: "calc(100vw - 400px)",
+                          maxHeight: "calc(100vh - 200px)"
                         }}
-                        onMouseDown={handleCropStart}
-                        onMouseMove={handleCropMove}
-                        onMouseUp={handleCropEnd}
-                        onMouseLeave={handleCropEnd}
-                        draggable={false}
-                      />
-                      
-                      {/* Enhanced Crop Overlay */}
-                      {toolType === "crop" && cropSelection && (
-                        <div
-                          className="absolute border-2 border-blue-500 bg-blue-500/20 pointer-events-none"
-                          style={{
-                            left: `${cropSelection.x}%`,
-                            top: `${cropSelection.y}%`,
-                            width: `${cropSelection.width}%`,
-                            height: `${cropSelection.height}%`
+                        onMouseDown={toolType === "crop" ? undefined : handlePanStart}
+                        onMouseMove={toolType === "crop" ? undefined : handlePanMove}
+                        onMouseUp={toolType === "crop" ? undefined : handlePanEnd}
+                        onMouseLeave={toolType === "crop" ? undefined : handlePanEnd}
+                      >
+                        <img
+                          ref={imageRef}
+                          src={currentFile.processedPreview || currentFile.preview}
+                          alt={currentFile.name}
+                          className="w-full h-full object-contain border border-gray-300 rounded-lg shadow-lg bg-white"
+                          style={{ 
+                            maxWidth: "100%",
+                            maxHeight: "100%",
+                            userSelect: "none",
+                            cursor: toolType === "crop" ? "crosshair" : isPanning ? "grabbing" : "grab"
                           }}
-                        >
-                          {/* Enhanced Crop Handles with Better UX */}
-                          <div 
-                            className="crop-handle absolute -top-2 -left-2 w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-md cursor-nw-resize pointer-events-auto"
-                            data-handle="nw"
-                            onMouseDown={(e) => {
-                              e.stopPropagation()
-                              setIsResizing("nw")
+                          onMouseDown={toolType === "crop" ? handleCropStart : undefined}
+                          onMouseMove={toolType === "crop" ? handleCropMove : undefined}
+                          onMouseUp={toolType === "crop" ? handleCropEnd : undefined}
+                          onMouseLeave={toolType === "crop" ? handleCropEnd : undefined}
+                          draggable={false}
+                        />
+                        
+                        {/* Enhanced Crop Overlay */}
+                        {toolType === "crop" && cropSelection && (
+                          <div
+                            className="absolute border-2 border-blue-500 bg-blue-500/20 pointer-events-none"
+                            style={{
+                              left: `${cropSelection.x}%`,
+                              top: `${cropSelection.y}%`,
+                              width: `${cropSelection.width}%`,
+                              height: `${cropSelection.height}%`
                             }}
-                          ></div>
-                          <div 
-                            className="crop-handle absolute -top-2 -right-2 w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-md cursor-ne-resize pointer-events-auto"
-                            data-handle="ne"
-                            onMouseDown={(e) => {
-                              e.stopPropagation()
-                              setIsResizing("ne")
-                            }}
-                          ></div>
-                          <div 
-                            className="crop-handle absolute -bottom-2 -left-2 w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-md cursor-sw-resize pointer-events-auto"
-                            data-handle="sw"
-                            onMouseDown={(e) => {
-                              e.stopPropagation()
-                              setIsResizing("sw")
-                            }}
-                          ></div>
-                          <div 
-                            className="crop-handle absolute -bottom-2 -right-2 w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-md cursor-se-resize pointer-events-auto"
-                            data-handle="se"
-                            onMouseDown={(e) => {
-                              e.stopPropagation()
-                              setIsResizing("se")
-                            }}
-                          ></div>
-                          
-                          {/* Enhanced Crop Info */}
-                          <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white text-xs px-3 py-1 rounded shadow-md whitespace-nowrap">
-                            {Math.round(cropSelection.width)}% × {Math.round(cropSelection.height)}%
-                            {currentFile && (
-                              <div className="text-center mt-1">
-                                {Math.round((cropSelection.width / 100) * currentFile.dimensions.width)} × {Math.round((cropSelection.height / 100) * currentFile.dimensions.height)} px
-                              </div>
-                            )}
+                          >
+                            {/* Crop Info */}
+                            <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white text-xs px-3 py-1 rounded shadow-md whitespace-nowrap">
+                              {Math.round(cropSelection.width)}% × {Math.round(cropSelection.height)}%
+                              {currentFile && (
+                                <div className="text-center mt-1">
+                                  {Math.round((cropSelection.width / 100) * currentFile.dimensions.width)} × {Math.round((cropSelection.height / 100) * currentFile.dimensions.height)} px
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Quick Actions Overlay */}
+                        <div className="absolute top-4 right-4 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur-sm rounded-lg p-2 shadow-lg">
+                          <Button size="sm" variant="secondary" onClick={() => {}}>
+                            <RotateCcw className="h-3 w-3" />
+                          </Button>
+                          <Button size="sm" variant="secondary" onClick={() => {}}>
+                            <RotateCw className="h-3 w-3" />
+                          </Button>
+                          <Button size="sm" variant="secondary" onClick={() => {}}>
+                            <FlipHorizontal className="h-3 w-3" />
+                          </Button>
+                          <Button size="sm" variant="secondary" onClick={() => {}}>
+                            <FlipVertical className="h-3 w-3" />
+                          </Button>
+                        </div>
+
+                        {/* Image Info Overlay */}
+                        <div className="absolute bottom-4 left-4 bg-black/70 text-white text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center space-x-4">
+                            <span>{currentFile.dimensions.width} × {currentFile.dimensions.height}</span>
+                            <span>{formatFileSize(currentFile.size)}</span>
+                            <span>{currentFile.name.split('.').pop()?.toUpperCase()}</span>
                           </div>
                         </div>
-                      )}
-                      
-                      {/* Quick Actions Overlay */}
-                      <div className="absolute top-4 right-4 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur-sm rounded-lg p-2 shadow-lg">
-                        <Button size="sm" variant="secondary" onClick={() => {}}>
-                          <RotateCcw className="h-3 w-3" />
-                        </Button>
-                        <Button size="sm" variant="secondary" onClick={() => {}}>
-                          <RotateCw className="h-3 w-3" />
-                        </Button>
-                        <Button size="sm" variant="secondary" onClick={() => {}}>
-                          <FlipHorizontal className="h-3 w-3" />
-                        </Button>
-                        <Button size="sm" variant="secondary" onClick={() => {}}>
-                          <FlipVertical className="h-3 w-3" />
-                        </Button>
                       </div>
-
-                       {/* Image Info Overlay */}
-                       <div className="absolute bottom-4 left-4 bg-black/70 text-white text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                         <div className="flex items-center space-x-4">
-                           <span>{currentFile.dimensions.width} × {currentFile.dimensions.height}</span>
-                           <span>{formatFileSize(currentFile.size)}</span>
-                           <span>{currentFile.name.split('.').pop()?.toUpperCase()}</span>
-                         </div>
-                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              </ScrollArea>
 
               {/* File Thumbnails Bar */}
               {files.length > 1 && (
                 <div className="border-t bg-white p-4">
-                  <div className="flex space-x-3 overflow-x-auto">
-                    {files.map((file) => (
-                      <div
-                        key={file.id}
-                        className={`relative flex-shrink-0 cursor-pointer transition-all duration-200 ${
-                          selectedFile === file.id 
-                            ? "ring-2 ring-blue-500 scale-105" 
-                            : "hover:scale-105 hover:shadow-md"
-                        }`}
-                        onClick={() => setSelectedFile(file.id)}
-                      >
-                        <img
-                          src={file.processedPreview || file.preview}
-                          alt={file.name}
-                          className="w-16 h-16 object-cover rounded-lg border border-gray-200"
-                        />
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="absolute -top-2 -right-2 w-5 h-5 p-0 rounded-full"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            removeFile(file.id)
-                          }}
+                  <ScrollArea orientation="horizontal">
+                    <div className="flex space-x-3">
+                      {files.map((file) => (
+                        <div
+                          key={file.id}
+                          className={`relative flex-shrink-0 cursor-pointer transition-all duration-200 ${
+                            selectedFile === file.id 
+                              ? "ring-2 ring-blue-500 scale-105" 
+                              : "hover:scale-105 hover:shadow-md"
+                          }`}
+                          onClick={() => setSelectedFile(file.id)}
                         >
-                          <X className="h-3 w-3" />
-                        </Button>
-                        {file.processed && (
-                          <CheckCircle className="absolute -bottom-1 -right-1 w-4 h-4 text-green-600 bg-white rounded-full" />
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                          <img
+                            src={file.processedPreview || file.preview}
+                            alt={file.name}
+                            className="w-16 h-16 object-cover rounded-lg border border-gray-200"
+                          />
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="absolute -top-2 -right-2 w-5 h-5 p-0 rounded-full"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              removeFile(file.id)
+                            }}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                          {file.processed && (
+                            <CheckCircle className="absolute -bottom-1 -right-1 w-4 h-4 text-green-600 bg-white rounded-full" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
                 </div>
               )}
             </div>
@@ -822,183 +703,171 @@ export function ImageToolsLayout({
         </div>
 
         {/* Sidebar Content */}
-        <div className="flex-1 overflow-auto p-6 space-y-6">
-          {/* Quick Presets */}
-          {presets.length > 0 && (
-            <div className="space-y-3">
-              <Label className="text-sm font-medium">Quick Presets</Label>
-              <div className="grid grid-cols-2 gap-2">
-                {presets.map((preset) => (
-                  <Button
-                    key={preset.name}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setToolOptions(prev => ({ ...prev, ...preset.values }))
-                    }}
-                    className="text-xs h-8"
-                  >
-                    {preset.name}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Aspect Ratio Lock for Crop Tool */}
-          {toolType === "crop" && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium">Aspect Ratio</Label>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    checked={aspectRatioLocked}
-                    onCheckedChange={setAspectRatioLocked}
-                  />
-                  <span className="text-xs">Lock</span>
+        <ScrollArea className="flex-1">
+          <div className="p-6 space-y-6">
+            {/* Quick Presets */}
+            {presets.length > 0 && (
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Quick Presets</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {presets.map((preset) => (
+                    <Button
+                      key={preset.name}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setToolOptions(prev => ({ ...prev, ...preset.values }))
+                      }}
+                      className="text-xs h-8"
+                    >
+                      {preset.name}
+                    </Button>
+                  ))}
                 </div>
               </div>
-              
-              {cropSelection && currentFile && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs">
-                  <div className="grid grid-cols-2 gap-2">
+            )}
+
+            {/* Crop Selection Info */}
+            {toolType === "crop" && cropSelection && currentFile && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-gray-600">Selection:</span>
+                    <div>{Math.round(cropSelection.width)}% × {Math.round(cropSelection.height)}%</div>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Pixels:</span>
                     <div>
-                      <span className="text-gray-600">Selection:</span>
-                      <div>{Math.round(cropSelection.width)}% × {Math.round(cropSelection.height)}%</div>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Pixels:</span>
-                      <div>
-                        {Math.round((cropSelection.width / 100) * currentFile.dimensions.width)} × {Math.round((cropSelection.height / 100) * currentFile.dimensions.height)}
-                      </div>
+                      {Math.round((cropSelection.width / 100) * currentFile.dimensions.width)} × {Math.round((cropSelection.height / 100) * currentFile.dimensions.height)}
                     </div>
                   </div>
                 </div>
-              )}
-            </div>
-          )}
-          {/* Grouped Options */}
-          {Object.entries(groupedOptions).map(([section, sectionOptions]) => (
-            <div key={section} className="space-y-4">
-              {section !== "General" && (
-                <div className="flex items-center space-x-2">
-                  <div className="h-px bg-gray-200 flex-1"></div>
-                  <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{section}</Label>
-                  <div className="h-px bg-gray-200 flex-1"></div>
-                </div>
-              )}
-              
-              {sectionOptions.map((option) => {
-                // Check condition if exists
-                if (option.condition && !option.condition(toolOptions)) {
-                  return null
-                }
+              </div>
+            )}
 
-                return (
-                  <div key={option.key} className="space-y-2">
-                    <Label className="text-sm font-medium">{option.label}</Label>
-                    
-                    {option.type === "select" && (
-                      <Select
-                        value={toolOptions[option.key]?.toString()}
-                        onValueChange={(value) => {
-                          setToolOptions(prev => ({ ...prev, [option.key]: value }))
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {option.selectOptions?.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
+            {/* Grouped Options */}
+            {Object.entries(groupedOptions).map(([section, sectionOptions]) => (
+              <div key={section} className="space-y-4">
+                {section !== "General" && (
+                  <div className="flex items-center space-x-2">
+                    <div className="h-px bg-gray-200 flex-1"></div>
+                    <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{section}</Label>
+                    <div className="h-px bg-gray-200 flex-1"></div>
+                  </div>
+                )}
+                
+                {sectionOptions.map((option) => {
+                  // Check condition if exists
+                  if (option.condition && !option.condition(toolOptions)) {
+                    return null
+                  }
 
-                    {option.type === "slider" && (
-                      <div className="space-y-2">
-                        <Slider
-                          value={[toolOptions[option.key] || option.defaultValue]}
-                          onValueChange={([value]) => setToolOptions(prev => ({ ...prev, [option.key]: value }))}
-                          min={option.min}
-                          max={option.max}
-                          step={option.step}
-                        />
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>{option.min}</span>
-                          <span className="font-medium">{toolOptions[option.key] || option.defaultValue}</span>
-                          <span>{option.max}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {option.type === "input" && (
-                      <Input
-                        type="number"
-                        value={toolOptions[option.key] || option.defaultValue}
-                        onChange={(e) => {
-                          setToolOptions(prev => ({ ...prev, [option.key]: parseInt(e.target.value) || option.defaultValue }))
-                        }}
-                        min={option.min}
-                        max={option.max}
-                      />
-                    )}
-
-                    {option.type === "checkbox" && (
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          checked={toolOptions[option.key] || false}
-                          onCheckedChange={(checked) => {
-                            setToolOptions(prev => ({ ...prev, [option.key]: checked }))
+                  return (
+                    <div key={option.key} className="space-y-2">
+                      <Label className="text-sm font-medium">{option.label}</Label>
+                      
+                      {option.type === "select" && (
+                        <Select
+                          value={toolOptions[option.key]?.toString()}
+                          onValueChange={(value) => {
+                            setToolOptions(prev => ({ ...prev, [option.key]: value }))
                           }}
-                        />
-                        <span className="text-sm">{option.label}</span>
-                      </div>
-                    )}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {option.selectOptions?.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
 
-                    {option.type === "color" && (
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="color"
+                      {option.type === "slider" && (
+                        <div className="space-y-2">
+                          <Slider
+                            value={[toolOptions[option.key] || option.defaultValue]}
+                            onValueChange={([value]) => setToolOptions(prev => ({ ...prev, [option.key]: value }))}
+                            min={option.min}
+                            max={option.max}
+                            step={option.step}
+                          />
+                          <div className="flex justify-between text-xs text-gray-500">
+                            <span>{option.min}</span>
+                            <span className="font-medium">{toolOptions[option.key] || option.defaultValue}</span>
+                            <span>{option.max}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {option.type === "input" && (
+                        <Input
+                          type="number"
                           value={toolOptions[option.key] || option.defaultValue}
                           onChange={(e) => {
-                            setToolOptions(prev => ({ ...prev, [option.key]: e.target.value }))
+                            setToolOptions(prev => ({ ...prev, [option.key]: parseInt(e.target.value) || option.defaultValue }))
                           }}
-                          className="w-12 h-8 border border-gray-300 rounded cursor-pointer"
+                          min={option.min}
+                          max={option.max}
                         />
+                      )}
+
+                      {option.type === "checkbox" && (
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            checked={toolOptions[option.key] || false}
+                            onCheckedChange={(checked) => {
+                              setToolOptions(prev => ({ ...prev, [option.key]: checked }))
+                            }}
+                          />
+                          <span className="text-sm">{option.label}</span>
+                        </div>
+                      )}
+
+                      {option.type === "color" && (
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="color"
+                            value={toolOptions[option.key] || option.defaultValue}
+                            onChange={(e) => {
+                              setToolOptions(prev => ({ ...prev, [option.key]: e.target.value }))
+                            }}
+                            className="w-12 h-8 border border-gray-300 rounded cursor-pointer"
+                          />
+                          <Input
+                            value={toolOptions[option.key] || option.defaultValue}
+                            onChange={(e) => {
+                              setToolOptions(prev => ({ ...prev, [option.key]: e.target.value }))
+                            }}
+                            className="flex-1"
+                          />
+                        </div>
+                      )}
+
+                      {option.type === "text" && (
                         <Input
                           value={toolOptions[option.key] || option.defaultValue}
                           onChange={(e) => {
                             setToolOptions(prev => ({ ...prev, [option.key]: e.target.value }))
                           }}
-                          className="flex-1"
+                          placeholder={option.label}
                         />
-                      </div>
-                    )}
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ))}
 
-                    {option.type === "text" && (
-                      <Input
-                        value={toolOptions[option.key] || option.defaultValue}
-                        onChange={(e) => {
-                          setToolOptions(prev => ({ ...prev, [option.key]: e.target.value }))
-                        }}
-                        placeholder={option.label}
-                      />
-                    )}
-                  </div>
-                )
-              })}
+            {/* Ad Space */}
+            <div className="py-4">
+              <AdBanner position="sidebar" showLabel />
             </div>
-          ))}
-
-          {/* Ad Space */}
-          <div className="py-4">
-            <AdBanner position="sidebar" showLabel />
           </div>
-        </div>
+        </ScrollArea>
 
         {/* Enhanced Sidebar Footer */}
         <div className="p-6 border-t bg-gray-50 space-y-3">
@@ -1041,7 +910,6 @@ export function ImageToolsLayout({
               </>
             )}
           </Button>
-
 
           {processedFiles.length > 0 && (
             <div className="space-y-2">

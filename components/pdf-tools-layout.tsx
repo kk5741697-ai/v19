@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider"
 import { Progress } from "@/components/ui/progress"
 import { Checkbox } from "@/components/ui/checkbox"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { AdBanner } from "@/components/ads/ad-banner"
 import { 
   Upload, 
@@ -19,8 +20,6 @@ import {
   CheckCircle,
   X,
   ArrowLeft,
-  Undo,
-  Redo,
   RefreshCw,
   GripVertical,
   Eye,
@@ -107,46 +106,13 @@ export function PDFToolsLayout({
     setToolOptions(defaultOptions)
   }, [options])
 
-  // Improved auto-save with quota management
+  // Update page ranges when files change
   useEffect(() => {
-    if (files.length > 0 || Object.keys(toolOptions).length > 0) {
-      try {
-        const saveData = {
-          fileCount: files.length,
-          toolOptions,
-          extractMode,
-          timestamp: Date.now()
-        }
-        
-        const saveString = JSON.stringify(saveData)
-        
-        if (saveString.length > 100000) { // Reduced limit
-          console.warn("Auto-save data too large, skipping")
-          return
-        }
-        
-        localStorage.setItem(`pixora-${toolType}-autosave`, saveString)
-      } catch (error) {
-        if (error instanceof Error && error.name === 'QuotaExceededError') {
-          // Clear ALL storage immediately
-          Object.keys(localStorage).forEach(key => {
-            if (key.startsWith('pixora-')) {
-              try {
-                localStorage.removeItem(key)
-              } catch {
-                localStorage.removeItem(key)
-              }
-            }
-          })
-          
-          toast({
-            title: "Storage cleared",
-            description: "Browser storage was full and has been cleared"
-          })
-        }
-      }
+    if (files.length > 0) {
+      const totalPages = files[0].pageCount
+      setPageRanges([{ from: 1, to: Math.min(totalPages, 5) }])
     }
-  }, [files.length, toolOptions, extractMode, toolType])
+  }, [files])
 
   const handleFileUpload = async (uploadedFiles: FileList | null) => {
     if (!uploadedFiles) return
@@ -211,7 +177,6 @@ export function PDFToolsLayout({
     })
   }
 
-
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     handleFileUpload(e.dataTransfer.files)
@@ -236,12 +201,6 @@ export function PDFToolsLayout({
       defaultOptions[option.key] = option.defaultValue
     })
     setToolOptions(defaultOptions)
-    
-    try {
-      localStorage.removeItem(`pixora-${toolType}-autosave`)
-    } catch (error) {
-      console.warn("Failed to clear auto-save:", error)
-    }
   }
 
   const togglePageSelection = (fileId: string, pageNumber: number) => {
@@ -315,7 +274,15 @@ export function PDFToolsLayout({
     setDownloadUrl(null)
 
     try {
-      const result = await processFunction(files, { ...toolOptions, extractMode, selectedPages: Array.from(selectedPages) })
+      const processOptions = { 
+        ...toolOptions, 
+        extractMode, 
+        selectedPages: Array.from(selectedPages),
+        pageRanges: extractMode === "range" ? pageRanges : undefined,
+        mergeRanges
+      }
+
+      const result = await processFunction(files, processOptions)
       
       if (result.success && result.downloadUrl) {
         setDownloadUrl(result.downloadUrl)
@@ -352,11 +319,6 @@ export function PDFToolsLayout({
       link.click()
       document.body.removeChild(link)
     }
-  }
-
-  const onDragEnd = (result: any) => {
-    // Drag and drop functionality can be implemented later
-    console.log("Drag and drop:", result)
   }
 
   const formatFileSize = (bytes: number) => {
@@ -409,7 +371,7 @@ export function PDFToolsLayout({
         </div>
 
         {/* Canvas Content */}
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-hidden">
           {files.length === 0 ? (
             <div className="h-full flex flex-col">
               <div className="p-4">
@@ -450,7 +412,8 @@ export function PDFToolsLayout({
                 <AdBanner position="inline" showLabel />
               </div>
 
-              <div className="flex-1 p-6 overflow-auto">
+              <ScrollArea className="flex-1">
+                <div className="p-6">
                   <div className="space-y-8">
                     {files.map((file, fileIndex) => (
                       <div key={file.id} className="bg-white rounded-lg shadow-sm border">
@@ -567,7 +530,8 @@ export function PDFToolsLayout({
                       </div>
                     ))}
                   </div>
-              </div>
+                </div>
+              </ScrollArea>
             </div>
           )}
         </div>
@@ -585,246 +549,257 @@ export function PDFToolsLayout({
         </div>
 
         {/* Sidebar Content */}
-        <div className="flex-1 overflow-auto p-6 space-y-6">
-          {/* Extract Mode for Split Tool */}
-          {toolType === "split" && (
-            <div className="space-y-3">
-              <Label className="text-sm font-medium">Extract Mode</Label>
-              <div className="grid grid-cols-3 gap-2 mb-4">
-                <Button
-                  variant={extractMode === "range" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setExtractMode("range")}
-                  className="flex flex-col items-center p-3 h-auto"
-                >
-                  <div className="text-lg mb-1">📑</div>
-                  <span className="text-xs">Range</span>
-                </Button>
-                <Button
-                  variant={extractMode === "pages" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setExtractMode("pages")}
-                  className="flex flex-col items-center p-3 h-auto"
-                >
-                  <div className="text-lg mb-1">📄</div>
-                  <span className="text-xs">Pages</span>
-                </Button>
-                <Button
-                  variant={extractMode === "size" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setExtractMode("size")}
-                  className="flex flex-col items-center p-3 h-auto"
-                >
-                  <div className="text-lg mb-1">📊</div>
-                  <span className="text-xs">Size</span>
-                </Button>
-              </div>
-              
-              {/* Range Mode Options */}
-              {extractMode === "range" && (
-                <div className="space-y-4">
-                  <div>
-                    <Label className="text-sm font-medium">Range mode:</Label>
-                    <div className="grid grid-cols-2 gap-2 mt-2">
+        <ScrollArea className="flex-1">
+          <div className="p-6 space-y-6">
+            {/* Extract Mode for Split Tool */}
+            {toolType === "split" && (
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Extract Mode</Label>
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  <Button
+                    variant={extractMode === "range" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setExtractMode("range")}
+                    className="flex flex-col items-center p-3 h-auto"
+                  >
+                    <div className="text-lg mb-1">📑</div>
+                    <span className="text-xs">Range</span>
+                  </Button>
+                  <Button
+                    variant={extractMode === "pages" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setExtractMode("pages")}
+                    className="flex flex-col items-center p-3 h-auto"
+                  >
+                    <div className="text-lg mb-1">📄</div>
+                    <span className="text-xs">Pages</span>
+                  </Button>
+                  <Button
+                    variant={extractMode === "size" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setExtractMode("size")}
+                    className="flex flex-col items-center p-3 h-auto"
+                  >
+                    <div className="text-lg mb-1">📊</div>
+                    <span className="text-xs">Size</span>
+                  </Button>
+                </div>
+                
+                {/* Range Mode Options */}
+                {extractMode === "range" && (
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-sm font-medium">Range mode:</Label>
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        <Button
+                          variant={rangeMode === "custom" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setRangeMode("custom")}
+                          className="text-xs"
+                        >
+                          Custom ranges
+                        </Button>
+                        <Button
+                          variant={rangeMode === "fixed" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setRangeMode("fixed")}
+                          className="text-xs"
+                        >
+                          Fixed ranges
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Range Inputs */}
+                    <div className="space-y-3">
+                      {pageRanges.map((range, index) => (
+                        <div key={index} className="flex items-center space-x-2">
+                          <span className="text-xs text-gray-500 w-16">Range {index + 1}</span>
+                          <div className="flex items-center space-x-2 flex-1">
+                            <Input
+                              type="number"
+                              placeholder="from"
+                              value={range.from}
+                              onChange={(e) => {
+                                const newRanges = [...pageRanges]
+                                const value = parseInt(e.target.value) || 1
+                                const maxPage = files[0]?.pageCount || 1
+                                newRanges[index].from = Math.max(1, Math.min(value, maxPage))
+                                setPageRanges(newRanges)
+                              }}
+                              className="text-xs h-8"
+                              min={1}
+                              max={files[0]?.pageCount || 1}
+                            />
+                            <span className="text-xs text-gray-500">to</span>
+                            <Input
+                              type="number"
+                              placeholder="to"
+                              value={range.to}
+                              onChange={(e) => {
+                                const newRanges = [...pageRanges]
+                                const value = parseInt(e.target.value) || 1
+                                const maxPage = files[0]?.pageCount || 1
+                                newRanges[index].to = Math.max(range.from, Math.min(value, maxPage))
+                                setPageRanges(newRanges)
+                              }}
+                              className="text-xs h-8"
+                              min={range.from}
+                              max={files[0]?.pageCount || 1}
+                            />
+                            {pageRanges.length > 1 && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setPageRanges(prev => prev.filter((_, i) => i !== index))
+                                }}
+                                className="h-8 w-8 p-0"
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      
                       <Button
-                        variant={rangeMode === "custom" ? "default" : "outline"}
+                        variant="outline"
                         size="sm"
-                        onClick={() => setRangeMode("custom")}
-                        className="text-xs"
+                        onClick={() => {
+                          const maxPage = files[0]?.pageCount || 1
+                          setPageRanges(prev => [...prev, { from: 1, to: maxPage }])
+                        }}
+                        className="w-full text-xs h-8"
                       >
-                        Custom ranges
-                      </Button>
-                      <Button
-                        variant={rangeMode === "fixed" ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setRangeMode("fixed")}
-                        className="text-xs"
-                      >
-                        Fixed ranges
+                        + Add Range
                       </Button>
                     </div>
-                  </div>
 
-                  {/* Range Inputs */}
-                  <div className="space-y-3">
-                    {pageRanges.map((range, index) => (
-                      <div key={index} className="flex items-center space-x-2">
-                        <span className="text-xs text-gray-500 w-16">Range {index + 1}</span>
-                        <div className="flex items-center space-x-2 flex-1">
-                          <Input
-                            type="number"
-                            placeholder="from page"
-                            value={range.from}
-                            onChange={(e) => {
-                              const newRanges = [...pageRanges]
-                              newRanges[index].from = parseInt(e.target.value) || 1
-                              setPageRanges(newRanges)
-                            }}
-                            className="text-xs h-8"
-                            min={1}
-                          />
-                          <span className="text-xs text-gray-500">to</span>
-                          <Input
-                            type="number"
-                            placeholder="to page"
-                            value={range.to}
-                            onChange={(e) => {
-                              const newRanges = [...pageRanges]
-                              newRanges[index].to = parseInt(e.target.value) || 1
-                              setPageRanges(newRanges)
-                            }}
-                            className="text-xs h-8"
-                            min={1}
-                          />
-                          {pageRanges.length > 1 && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setPageRanges(prev => prev.filter((_, i) => i !== index))
-                              }}
-                              className="h-8 w-8 p-0"
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setPageRanges(prev => [...prev, { from: 1, to: 1 }])
-                      }}
-                      className="w-full text-xs h-8"
-                    >
-                      + Add Range
-                    </Button>
+                    {/* Merge Option */}
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        checked={mergeRanges}
+                        onCheckedChange={setMergeRanges}
+                      />
+                      <Label className="text-sm">Merge all ranges in one PDF file.</Label>
+                    </div>
                   </div>
+                )}
 
-                  {/* Merge Option */}
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      checked={mergeRanges}
-                      onCheckedChange={setMergeRanges}
-                    />
-                    <Label className="text-sm">Merge all ranges in one PDF file.</Label>
-                  </div>
-                </div>
-              )}
-
-              {extractMode === "pages" && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <p className="text-sm text-blue-800">
-                    Selected pages will be extracted. 
-                    <span className="font-medium"> {selectedPages.size} page{selectedPages.size !== 1 ? 's' : ''}</span> selected.
-                  </p>
-                </div>
-              )}
-
-              {extractMode === "size" && (
-                <div className="space-y-3">
-                  <div>
-                    <Label className="text-sm font-medium">Number of Parts</Label>
-                    <Input
-                      type="number"
-                      value={toolOptions.equalParts || 2}
-                      onChange={(e) => {
-                        setToolOptions(prev => ({ ...prev, equalParts: parseInt(e.target.value) || 2 }))
-                      }}
-                      min={2}
-                      max={20}
-                      className="mt-1"
-                    />
-                  </div>
+                {extractMode === "pages" && (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                     <p className="text-sm text-blue-800">
-                      PDF will be split into <span className="font-medium">{toolOptions.equalParts || 2}</span> equal parts.
+                      Selected pages will be extracted. 
+                      <span className="font-medium"> {selectedPages.size} page{selectedPages.size !== 1 ? 's' : ''}</span> selected.
                     </p>
                   </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Tool Options */}
-          {options.map((option) => {
-            if (option.condition && !option.condition(toolOptions)) {
-              return null
-            }
-
-            return (
-              <div key={option.key} className="space-y-2">
-                <Label className="text-sm font-medium">{option.label}</Label>
-                
-                {option.type === "select" && (
-                  <Select
-                    value={toolOptions[option.key]?.toString()}
-                    onValueChange={(value) => {
-                      setToolOptions(prev => ({ ...prev, [option.key]: value }))
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {option.selectOptions?.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 )}
 
-                {option.type === "slider" && (
-                  <div className="space-y-2">
-                    <Slider
-                      value={[toolOptions[option.key] || option.defaultValue]}
-                      onValueChange={([value]) => setToolOptions(prev => ({ ...prev, [option.key]: value }))}
-                      min={option.min}
-                      max={option.max}
-                      step={option.step}
-                    />
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>{option.min}</span>
-                      <span className="font-medium">{toolOptions[option.key] || option.defaultValue}</span>
-                      <span>{option.max}</span>
+                {extractMode === "size" && (
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-sm font-medium">Number of Parts</Label>
+                      <Input
+                        type="number"
+                        value={toolOptions.equalParts || 2}
+                        onChange={(e) => {
+                          const value = Math.max(2, Math.min(20, parseInt(e.target.value) || 2))
+                          setToolOptions(prev => ({ ...prev, equalParts: value }))
+                        }}
+                        min={2}
+                        max={20}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <p className="text-sm text-blue-800">
+                        PDF will be split into <span className="font-medium">{toolOptions.equalParts || 2}</span> equal parts.
+                      </p>
                     </div>
                   </div>
                 )}
-
-                {option.type === "text" && (
-                  <Input
-                    value={toolOptions[option.key] || option.defaultValue}
-                    onChange={(e) => {
-                      setToolOptions(prev => ({ ...prev, [option.key]: e.target.value }))
-                    }}
-                    placeholder={option.label}
-                  />
-                )}
-
-                {option.type === "checkbox" && (
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      checked={toolOptions[option.key] || false}
-                      onCheckedChange={(checked) => {
-                        setToolOptions(prev => ({ ...prev, [option.key]: checked }))
-                      }}
-                    />
-                    <span className="text-sm">{option.label}</span>
-                  </div>
-                )}
               </div>
-            )
-          })}
+            )}
 
-          <div className="py-4">
-            <AdBanner position="sidebar" showLabel />
+            {/* Tool Options */}
+            {options.map((option) => {
+              if (option.condition && !option.condition(toolOptions)) {
+                return null
+              }
+
+              return (
+                <div key={option.key} className="space-y-2">
+                  <Label className="text-sm font-medium">{option.label}</Label>
+                  
+                  {option.type === "select" && (
+                    <Select
+                      value={toolOptions[option.key]?.toString()}
+                      onValueChange={(value) => {
+                        setToolOptions(prev => ({ ...prev, [option.key]: value }))
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {option.selectOptions?.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+
+                  {option.type === "slider" && (
+                    <div className="space-y-2">
+                      <Slider
+                        value={[toolOptions[option.key] || option.defaultValue]}
+                        onValueChange={([value]) => setToolOptions(prev => ({ ...prev, [option.key]: value }))}
+                        min={option.min}
+                        max={option.max}
+                        step={option.step}
+                      />
+                      <div className="flex justify-between text-xs text-gray-500">
+                        <span>{option.min}</span>
+                        <span className="font-medium">{toolOptions[option.key] || option.defaultValue}</span>
+                        <span>{option.max}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {option.type === "text" && (
+                    <Input
+                      value={toolOptions[option.key] || option.defaultValue}
+                      onChange={(e) => {
+                        setToolOptions(prev => ({ ...prev, [option.key]: e.target.value }))
+                      }}
+                      placeholder={option.label}
+                    />
+                  )}
+
+                  {option.type === "checkbox" && (
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        checked={toolOptions[option.key] || false}
+                        onCheckedChange={(checked) => {
+                          setToolOptions(prev => ({ ...prev, [option.key]: checked }))
+                        }}
+                      />
+                      <span className="text-sm">{option.label}</span>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+
+            {/* Ad Space */}
+            <div className="py-4">
+              <AdBanner position="sidebar" showLabel />
+            </div>
           </div>
-        </div>
+        </ScrollArea>
 
         {/* Enhanced Sidebar Footer */}
         <div className="p-6 border-t bg-gray-50 space-y-3">
@@ -870,7 +845,6 @@ export function PDFToolsLayout({
               </>
             )}
           </Button>
-
 
           {downloadUrl && (
             <div className="space-y-2">

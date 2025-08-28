@@ -13,6 +13,9 @@ export interface PDFProcessingOptions {
   mergeMode?: "sequential" | "interleave" | "custom"
   addBookmarks?: boolean
   preserveMetadata?: boolean
+  selectedPages?: string[]
+  extractMode?: string
+  equalParts?: number
 }
 
 export interface PDFPageInfo {
@@ -164,22 +167,53 @@ export class PDFProcessor {
     }
   }
 
-  static async splitPDF(file: File, ranges: Array<{ from: number; to: number }>): Promise<Uint8Array[]> {
+  static async splitPDF(file: File, ranges: Array<{ from: number; to: number }>, options: PDFProcessingOptions = {}): Promise<Uint8Array[]> {
     try {
       const arrayBuffer = await file.arrayBuffer()
       const pdf = await PDFDocument.load(arrayBuffer)
       const results: Uint8Array[] = []
       const totalPages = pdf.getPageCount()
 
-      // Validate and filter ranges
-      const validRanges = ranges.filter(range => 
-        range.from >= 1 && 
-        range.to <= totalPages && 
-        range.from <= range.to
-      )
+      let validRanges: Array<{ from: number; to: number }> = []
+
+      // Handle different extraction modes
+      if (options.extractMode === "pages" && options.selectedPages) {
+        // Extract selected pages
+        const selectedPageNumbers = options.selectedPages
+          .map((pageKey: string) => {
+            const parts = pageKey.split('-')
+            return parseInt(parts[parts.length - 1])
+          })
+          .filter((num: number) => !isNaN(num) && num >= 1 && num <= totalPages)
+          .sort((a, b) => a - b)
+
+        if (selectedPageNumbers.length === 0) {
+          throw new Error("No valid pages selected for extraction.")
+        }
+
+        validRanges = selectedPageNumbers.map(pageNum => ({ from: pageNum, to: pageNum }))
+      } else if (options.extractMode === "size" && options.equalParts) {
+        // Split into equal parts
+        const parts = Math.max(2, Math.min(20, options.equalParts))
+        const pagesPerPart = Math.ceil(totalPages / parts)
+        
+        validRanges = Array.from({ length: parts }, (_, i) => ({
+          from: i * pagesPerPart + 1,
+          to: Math.min((i + 1) * pagesPerPart, totalPages)
+        })).filter(range => range.from <= totalPages)
+      } else {
+        // Use provided ranges or default to all pages
+        validRanges = ranges && ranges.length > 0 
+          ? ranges.filter(range => 
+              range.from >= 1 && 
+              range.to <= totalPages && 
+              range.from <= range.to
+            )
+          : [{ from: 1, to: totalPages }]
+      }
 
       if (validRanges.length === 0) {
-        throw new Error(`Invalid page ranges. Document has ${totalPages} pages.`)
+        throw new Error(`No valid page ranges found. Document has ${totalPages} pages.`)
       }
 
       for (const range of validRanges) {
@@ -203,7 +237,7 @@ export class PDFProcessor {
       return results
     } catch (error) {
       console.error("PDF split failed:", error)
-      throw new Error("Failed to split PDF. Please check your page ranges and try again.")
+      throw new Error(error instanceof Error ? error.message : "Failed to split PDF. Please check your page ranges and try again.")
     }
   }
 
@@ -296,11 +330,27 @@ export class PDFProcessor {
 
         let x: number, y: number, rotation = 0
 
-        switch (options.watermarkOpacity) {
-          case 0.1: // diagonal
+        switch (options.position) {
+          case "diagonal":
             x = width / 2
             y = height / 2
             rotation = Math.PI / 4
+            break
+          case "top-left":
+            x = 50
+            y = height - 50
+            break
+          case "top-right":
+            x = width - 50
+            y = height - 50
+            break
+          case "bottom-left":
+            x = 50
+            y = 50
+            break
+          case "bottom-right":
+            x = width - 50
+            y = 50
             break
           default: // center
             x = width / 2 - (watermarkText.length * fontSize) / 4
@@ -315,7 +365,7 @@ export class PDFProcessor {
           font: helveticaFont,
           color: rgb(0.7, 0.7, 0.7),
           opacity: options.watermarkOpacity || 0.3,
-          rotate: { angle: rotation, origin: { x: width / 2, y: height / 2 } }
+          rotate: rotation ? { angle: rotation, origin: { x: width / 2, y: height / 2 } } : undefined
         })
       })
 
