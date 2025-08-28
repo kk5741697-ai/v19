@@ -110,9 +110,71 @@ const cropPresets = [
 
 async function cropImages(files: any[], options: any) {
   try {
+    if (files.length === 0) {
+      return {
+        success: false,
+        error: "No files to process",
+      }
+    }
     const processedFiles = await Promise.all(
       files.map(async (file) => {
-        const cropArea = file.cropArea || { x: 10, y: 10, width: 80, height: 80 }
+        // FIXED: Better crop area handling with proper validation
+        let cropArea = file.cropArea
+        
+        if (!cropArea || typeof cropArea !== 'object') {
+          // Use options or default crop area
+          cropArea = {
+            x: Math.max(0, options.positionX || 10),
+            y: Math.max(0, options.positionY || 10),
+            width: Math.max(10, Math.min(90, options.cropWidth ? (options.cropWidth / file.dimensions.width) * 100 : 80)),
+            height: Math.max(10, Math.min(90, options.cropHeight ? (options.cropHeight / file.dimensions.height) * 100 : 80))
+          }
+        }
+        
+        // Apply aspect ratio constraints if specified
+        if (options.aspectRatio && options.aspectRatio !== "free") {
+          const [ratioW, ratioH] = options.aspectRatio.split(':').map(Number)
+          if (ratioW && ratioH) {
+            const targetRatio = ratioW / ratioH
+            const currentRatio = cropArea.width / cropArea.height
+            
+            if (currentRatio > targetRatio) {
+              cropArea.width = cropArea.height * targetRatio
+            } else {
+              cropArea.height = cropArea.width / targetRatio
+            }
+          }
+        }
+        
+        // Handle social media presets
+        if (options.cropPreset && options.cropPreset !== "custom") {
+          const presetDimensions = this.getPresetDimensions(options.cropPreset)
+          if (presetDimensions) {
+            const { width: presetWidth, height: presetHeight } = presetDimensions
+            const imageAspectRatio = file.dimensions.width / file.dimensions.height
+            const presetAspectRatio = presetWidth / presetHeight
+            
+            if (imageAspectRatio > presetAspectRatio) {
+              // Image is wider, fit by height
+              const newWidth = (presetAspectRatio * file.dimensions.height / file.dimensions.width) * 100
+              cropArea = {
+                x: (100 - newWidth) / 2,
+                y: 0,
+                width: newWidth,
+                height: 100
+              }
+            } else {
+              // Image is taller, fit by width
+              const newHeight = (file.dimensions.width / presetAspectRatio / file.dimensions.height) * 100
+              cropArea = {
+                x: 0,
+                y: (100 - newHeight) / 2,
+                width: 100,
+                height: newHeight
+              }
+            }
+          }
+        }
         
         const processedBlob = await ImageProcessor.cropImage(
           file.originalFile || file.file,
@@ -149,6 +211,19 @@ async function cropImages(files: any[], options: any) {
       success: false,
       error: error instanceof Error ? error.message : "Failed to crop images",
     }
+  }
+  
+  // Helper function for preset dimensions
+  static getPresetDimensions(preset: string) {
+    const presets: Record<string, { width: number; height: number }> = {
+      "instagram-post": { width: 1080, height: 1080 },
+      "instagram-story": { width: 1080, height: 1920 },
+      "facebook-post": { width: 1200, height: 630 },
+      "twitter-post": { width: 1200, height: 675 },
+      "youtube-thumbnail": { width: 1280, height: 720 },
+      "linkedin-post": { width: 1200, height: 627 }
+    }
+    return presets[preset]
   }
 }
 

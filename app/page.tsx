@@ -2,6 +2,7 @@ import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { AdSenseBanner } from "@/components/ads/adsense-banner"
 import { 
   Maximize, Crop, FileImage, ArrowUpDown, Edit3, Zap, ImageIcon, Download, Palette, Upload, Archive,
   FileType, QrCode, Code, TrendingUp, Wrench, Globe, Scissors, Lock, RefreshCw
@@ -126,6 +127,15 @@ export default function HomePage() {
 
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-blue-50 via-white to-purple-50 py-24 px-4 relative overflow-hidden">
+        {/* AdSense Banner */}
+        <div className="container mx-auto mb-8">
+          <AdSenseBanner 
+            adSlot="1234567890"
+            adFormat="horizontal"
+            className="max-w-4xl mx-auto"
+          />
+        </div>
+        
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-5">
           <div className="absolute top-10 left-10 w-32 h-32 bg-blue-500 rounded-full blur-3xl"></div>
@@ -206,6 +216,14 @@ export default function HomePage() {
 
       {/* Features Section */}
       <section className="py-16 px-4 bg-white">
+        <div className="max-w-6xl mx-auto mb-8">
+          <AdSenseBanner 
+            adSlot="1234567891"
+            adFormat="rectangle"
+            className="text-center"
+          />
+        </div>
+        
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-heading font-bold text-gray-900 mb-4">

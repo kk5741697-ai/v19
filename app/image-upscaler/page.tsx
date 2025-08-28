@@ -80,21 +80,56 @@ const upscaleOptions = [
 
 async function upscaleImages(files: any[], options: any) {
   try {
+    if (files.length === 0) {
+      return {
+        success: false,
+        error: "No files to process",
+      }
+    }
     const processedFiles = await Promise.all(
       files.map(async (file) => {
-        const scaleFactor = parseFloat(options.scaleFactor.replace('x', ''))
+        // FIXED: Better scale factor handling
+        let scaleFactor = 2
+        if (options.scaleFactor) {
+          if (typeof options.scaleFactor === 'string') {
+            scaleFactor = parseFloat(options.scaleFactor.replace('x', ''))
+          } else {
+            scaleFactor = options.scaleFactor
+          }
+        }
+        
+        // Validate scale factor
+        scaleFactor = Math.max(1.1, Math.min(10, scaleFactor))
+        
         const newWidth = Math.round(file.dimensions.width * scaleFactor)
         const newHeight = Math.round(file.dimensions.height * scaleFactor)
 
+        // Enhanced upscaling options
+        const upscaleOptions = {
+          width: newWidth,
+          height: newHeight,
+          maintainAspectRatio: true,
+          outputFormat: options.outputFormat,
+          quality: options.quality,
+          // Apply enhancement filters for upscaling
+          filters: {
+            brightness: options.enhanceDetails ? 105 : 100,
+            contrast: options.enhanceDetails ? 110 : 100,
+            saturation: options.reduceNoise ? 95 : 100,
+            blur: options.reduceNoise ? 0.5 : 0
+          }
+        }
+        
+        // Apply sharpening if specified
+        if (options.sharpen && options.sharpen > 0) {
+          upscaleOptions.filters = {
+            ...upscaleOptions.filters,
+            contrast: (upscaleOptions.filters.contrast || 100) + (options.sharpen * 0.5)
+          }
+        }
         const processedBlob = await ImageProcessor.resizeImage(
           file.originalFile || file.file,
-          {
-            width: newWidth,
-            height: newHeight,
-            maintainAspectRatio: true,
-            outputFormat: options.outputFormat,
-            quality: options.quality,
-          }
+          upscaleOptions
         )
 
         const processedUrl = URL.createObjectURL(processedBlob)

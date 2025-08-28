@@ -124,3 +124,39 @@
 .tool-card-hover {
   @apply transition-all duration-200 hover:shadow-lg hover:-translate-y-1;
 }
+
+/* AdSense Compatibility Styles */
+.adsbygoogle {
+  display: block !important;
+  text-align: center;
+}
+
+/* Ensure ads don't interfere with layout */
+.ad-container {
+  min-height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Mobile ad adjustments */
+@media (max-width: 768px) {
+  .ad-container {
+    min-height: 50px;
+  }
+}
+
+/* Prevent ad blockers from hiding legitimate content */
+.content-wrapper {
+  position: relative;
+  z-index: 1;
+}
+
+/* Enhanced tool interface styles */
+.tool-interface {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.processing-indicator {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

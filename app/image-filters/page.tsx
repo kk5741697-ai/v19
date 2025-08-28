@@ -85,22 +85,30 @@ const filterOptions = [
 
 async function applyFilters(files: any[], options: any) {
   try {
+    if (files.length === 0) {
+      return {
+        success: false,
+        error: "No files to process",
+      }
+    }
     const processedFiles = await Promise.all(
       files.map(async (file) => {
+        // FIXED: Enhanced filter processing with proper validation
+        const filterOptions = {
+          filters: {
+            brightness: Math.max(0, Math.min(300, options.brightness || 100)),
+            contrast: Math.max(0, Math.min(300, options.contrast || 100)),
+            saturation: Math.max(0, Math.min(300, options.saturation || 100)),
+            blur: Math.max(0, Math.min(50, options.blur || 0)),
+            sepia: Boolean(options.sepia),
+            grayscale: Boolean(options.grayscale),
+          },
+          outputFormat: options.outputFormat || "png",
+          quality: Math.max(10, Math.min(100, options.quality || 95))
+        }
         const processedBlob = await ImageProcessor.applyFilters(
           file.originalFile || file.file,
-          {
-            filters: {
-              brightness: options.brightness,
-              contrast: options.contrast,
-              saturation: options.saturation,
-              blur: options.blur,
-              sepia: options.sepia,
-              grayscale: options.grayscale,
-            },
-            outputFormat: options.outputFormat,
-            quality: options.quality
-          }
+          filterOptions
         )
 
         const processedUrl = URL.createObjectURL(processedBlob)

@@ -13,6 +13,11 @@ export interface QRCodeOptions {
   quality?: number
   maskPattern?: number
   version?: number
+  style?: {
+    shape?: string
+    corner?: string
+    dot?: string
+  }
   logo?: {
     src: string
     width?: number
@@ -58,7 +63,7 @@ export class QRProcessor {
 
       // Add logo if provided
       if (options.logo?.src) {
-        return await this.addLogoToQR(qrDataURL, options.logo, options.width || 1000)
+        return await this.addLogoToQR(qrDataURL, options.logo, options.width || 1000, options.style)
       }
 
       return qrDataURL
@@ -97,6 +102,7 @@ export class QRProcessor {
     qrDataURL: string,
     logo: NonNullable<QRCodeOptions["logo"]>,
     qrSize: number,
+    style?: QRCodeOptions["style"]
   ): Promise<string> {
     return new Promise((resolve, reject) => {
       const canvas = document.createElement("canvas")
@@ -119,19 +125,37 @@ export class QRProcessor {
         logoImage.onload = () => {
           try {
             // Calculate logo size and position
-            const logoSize = logo.width || qrSize * 0.2
+            const logoSize = logo.width || qrSize * 0.15  // Slightly smaller for better scanning
             const logoX = logo.x !== undefined ? logo.x : (qrSize - logoSize) / 2
             const logoY = logo.y !== undefined ? logo.y : (qrSize - logoSize) / 2
 
-            // Draw white background for logo with rounded corners
+            // Enhanced logo background with better styling
             const padding = 8
+            const borderRadius = style?.corner === "rounded" ? 12 : 8
+            
             ctx.fillStyle = "#FFFFFF"
+            ctx.shadowColor = "rgba(0, 0, 0, 0.1)"
+            ctx.shadowBlur = 4
+            ctx.shadowOffsetX = 0
+            ctx.shadowOffsetY = 2
+            
             ctx.beginPath()
-            ctx.roundRect(logoX - padding, logoY - padding, logoSize + padding * 2, logoSize + padding * 2, 8)
+            ctx.roundRect(logoX - padding, logoY - padding, logoSize + padding * 2, logoSize + padding * 2, borderRadius)
             ctx.fill()
+            
+            // Reset shadow
+            ctx.shadowColor = "transparent"
+            ctx.shadowBlur = 0
+            ctx.shadowOffsetX = 0
+            ctx.shadowOffsetY = 0
 
-            // Draw logo
+            // Draw logo with rounded corners if specified
+            ctx.save()
+            ctx.beginPath()
+            ctx.roundRect(logoX, logoY, logoSize, logoSize, borderRadius / 2)
+            ctx.clip()
             ctx.drawImage(logoImage, logoX, logoY, logoSize, logoSize)
+            ctx.restore()
 
             resolve(canvas.toDataURL("image/png"))
           } catch (error) {

@@ -78,19 +78,22 @@ export function EnhancedAdBanner({ position, className, showLabel = false }: Enh
   const slot = AD_SLOTS[position]
 
   if (!slot) {
-    console.warn(`No ad slot configured for position: ${position}`)
     return null
   }
 
   return (
     <div className={className}>
+      {showLabel && (
+        <div className="text-xs text-gray-400 text-center mb-2 opacity-70">
+          Advertisement
+        </div>
+      )}
       <EnhancedAdSlot
         slot={slot}
-        showLabel={showLabel}
+        showLabel={false}
         fallback={
-          <div className="bg-gradient-to-br from-gray-50 to-gray-100 border border-dashed border-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-sm p-4 min-h-[90px]">
+          <div className="bg-gradient-to-br from-gray-50 to-gray-100 border border-dashed border-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-sm p-4 min-h-[90px] opacity-60">
             <div className="text-center">
-              {showLabel && <div className="text-xs mb-1">Advertisement</div>}
               <div>Ad Space</div>
             </div>
           </div>

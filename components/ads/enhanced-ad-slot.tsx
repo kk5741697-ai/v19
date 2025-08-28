@@ -87,17 +87,8 @@ export function EnhancedAdSlot({
 
   // Development fallback
   if (isDevelopment) {
-    const defaultFallback = (
-      <div className="bg-gradient-to-br from-gray-50 to-gray-100 border border-dashed border-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-sm p-4 min-h-[90px] opacity-50">
-        {showLabel && <div className="text-xs">Advertisement</div>}
-      </div>
-    )
-
-    return (
-      <div className={className}>
-        {fallback || defaultFallback}
-      </div>
-    )
+    // In development, show minimal ad placeholder
+    return null
   }
 
   return (
@@ -111,10 +102,6 @@ export function EnhancedAdSlot({
         className,
       )}
     >
-      {showLabel && (
-        <div className="text-xs text-gray-400 text-center mb-1 opacity-70">Advertisement</div>
-      )}
-      
       <div
         id={slot.id}
         className={cn(

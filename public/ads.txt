@@ -1,0 +1,7 @@
+# ads.txt file for AdSense compliance
+# Replace with your actual publisher ID and details
+
+google.com, pub-your-publisher-id, DIRECT, f08c47fec0942fa0
+
+# Additional ad networks can be added here
+# Format: domain, publisher_id, relationship, certification_authority_id

@@ -43,11 +43,12 @@ async function compressPDF(files: any[], options: any) {
       }
     }
 
+    // FIXED: Enhanced compression options with proper validation
     const compressionOptions = {
-      quality: 80,
+      quality: Math.max(10, Math.min(100, options.quality || 80)),
       compressionLevel: options.compressionLevel,
-      optimizeImages: options.optimizeImages,
-      removeMetadata: options.removeMetadata,
+      optimizeImages: Boolean(options.optimizeImages),
+      removeMetadata: Boolean(options.removeMetadata),
     }
 
     if (files.length === 1) {

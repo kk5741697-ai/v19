@@ -12,6 +12,7 @@ import { Slider } from "@/components/ui/slider"
 import { QRProcessor } from "@/lib/qr-processor"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   QrCode,
   Download,
@@ -30,7 +31,9 @@ import {
   MapPin,
   Settings,
   AlertCircle,
-  Copy
+  Copy,
+  Image as ImageIcon,
+  X
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 
@@ -42,6 +45,11 @@ export default function QRCodeGeneratorPage() {
   const [foregroundColor, setForegroundColor] = useState("#000000")
   const [backgroundColor, setBackgroundColor] = useState("#FFFFFF")
   const [logoUrl, setLogoUrl] = useState("")
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoPreview, setLogoPreview] = useState("")
+  const [qrStyle, setQrStyle] = useState("square")
+  const [cornerStyle, setCornerStyle] = useState("square")
+  const [dotStyle, setDotStyle] = useState("square")
   const [qrDataUrl, setQrDataUrl] = useState("")
   
   // Content type specific fields
@@ -114,6 +122,8 @@ export default function QRCodeGeneratorPage() {
           return
         }
 
+        // Use logo file if available, otherwise use URL
+        const logoSrc = logoFile ? URL.createObjectURL(logoFile) : logoUrl
         const qrOptions = {
           width: qrSize[0],
           color: {
@@ -121,12 +131,17 @@ export default function QRCodeGeneratorPage() {
             light: backgroundColor,
           },
           errorCorrectionLevel: errorCorrection as "L" | "M" | "Q" | "H",
-          logo: logoUrl
+          logo: logoSrc
             ? {
-                src: logoUrl,
+                src: logoSrc,
                 width: qrSize[0] * 0.2,
               }
             : undefined,
+          style: {
+            shape: qrStyle,
+            corners: cornerStyle,
+            dots: dotStyle
+          }
         }
 
         const qrDataURL = await QRProcessor.generateQRCode(qrContent, qrOptions)
@@ -157,9 +172,33 @@ export default function QRCodeGeneratorPage() {
     foregroundColor,
     backgroundColor,
     logoUrl,
+    logoFile,
+    qrStyle,
+    cornerStyle,
+    dotStyle,
     errorCorrection,
   ])
 
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file && file.type.startsWith("image/")) {
+      setLogoFile(file)
+      setLogoUrl("") // Clear URL when file is selected
+      
+      // Create preview
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setLogoPreview(e.target?.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const clearLogo = () => {
+    setLogoFile(null)
+    setLogoUrl("")
+    setLogoPreview("")
+  }
   const downloadQR = async (format: string) => {
     try {
       if (!qrDataUrl && format !== "svg") {
@@ -658,32 +697,84 @@ export default function QRCodeGeneratorPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {/* Logo Upload Options */}
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-sm font-semibold text-gray-700">Upload Logo File</Label>
+                      <div className="mt-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleLogoUpload}
+                          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t" />
+                      </div>
+                      <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-white px-2 text-gray-500">Or</span>
+                      </div>
+                    </div>
+                  </div>
+
                   <div>
                     <Label htmlFor="logo-url" className="text-sm font-semibold text-gray-700">Logo URL</Label>
                     <Input
                       id="logo-url"
                       type="url"
                       value={logoUrl}
-                      onChange={(e) => setLogoUrl(e.target.value)}
+                      onChange={(e) => {
+                        setLogoUrl(e.target.value)
+                        if (e.target.value) {
+                          setLogoFile(null) // Clear file when URL is entered
+                          setLogoPreview("")
+                        }
+                      }}
                       placeholder="https://example.com/logo.png"
                       className="mt-2"
+                      disabled={!!logoFile}
                     />
                     <p className="text-xs text-gray-500 mt-2">
                       Enter a URL to an image that will be placed in the center of your QR code
                     </p>
                   </div>
                   
+                  {/* Logo Preview */}
+                  {(logoPreview || logoUrl) && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold text-gray-700">Logo Preview</Label>
+                      <div className="relative inline-block">
+                        <img
+                          src={logoPreview || logoUrl}
+                          alt="Logo preview"
+                          className="w-16 h-16 object-contain border border-gray-300 rounded-lg bg-white"
+                        />
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="absolute -top-2 -right-2 w-6 h-6 p-0 rounded-full"
+                          onClick={clearLogo}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Logo Gallery */}
                   <div className="space-y-3">
                     <Label className="text-sm font-semibold text-gray-700">Quick Logo Gallery</Label>
                     <div className="grid grid-cols-6 gap-3">
                       {[
-                        { name: "Facebook", icon: "📘", color: "#1877F2" },
-                        { name: "Twitter", icon: "🐦", color: "#1DA1F2" },
-                        { name: "Instagram", icon: "📷", color: "#E4405F" },
-                        { name: "LinkedIn", icon: "💼", color: "#0A66C2" },
-                        { name: "YouTube", icon: "📺", color: "#FF0000" },
-                        { name: "WhatsApp", icon: "💬", color: "#25D366" },
+                        { name: "Facebook", icon: "📘", color: "#1877F2", url: "https://upload.wikimedia.org/wikipedia/commons/5/51/Facebook_f_logo_%282019%29.svg" },
+                        { name: "Twitter", icon: "🐦", color: "#1DA1F2", url: "https://upload.wikimedia.org/wikipedia/commons/6/6f/Logo_of_Twitter.svg" },
+                        { name: "Instagram", icon: "📷", color: "#E4405F", url: "https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png" },
+                        { name: "LinkedIn", icon: "💼", color: "#0A66C2", url: "https://upload.wikimedia.org/wikipedia/commons/c/ca/LinkedIn_logo_initials.png" },
+                        { name: "YouTube", icon: "📺", color: "#FF0000", url: "https://upload.wikimedia.org/wikipedia/commons/0/09/YouTube_full-color_icon_%282017%29.svg" },
                       ].map((social) => (
                         <button
                           key={social.name}

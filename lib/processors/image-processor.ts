@@ -17,6 +17,20 @@ export interface ImageProcessingOptions {
   position?: string
   textColor?: string
   shadowEnabled?: boolean
+  sensitivity?: number
+  smoothing?: number
+  featherEdges?: boolean
+  preserveDetails?: boolean
+  scaleFactor?: string
+  algorithm?: string
+  enhanceDetails?: boolean
+  reduceNoise?: boolean
+  sharpen?: number
+  autoOptimize?: boolean
+  removeMetadata?: boolean
+  resizeWidth?: number
+  resizeHeight?: number
+  customRotation?: number
   filters?: {
     brightness?: number
     contrast?: number
@@ -43,6 +57,14 @@ export class ImageProcessor {
           let { width: targetWidth, height: targetHeight } = options
           const { naturalWidth: originalWidth, naturalHeight: originalHeight } = img
 
+          // Handle resize width/height from options
+          if (options.resizeWidth && options.resizeWidth > 0) {
+            targetWidth = options.resizeWidth
+          }
+          if (options.resizeHeight && options.resizeHeight > 0) {
+            targetHeight = options.resizeHeight
+          }
+
           // Calculate dimensions based on resize mode
           if (options.maintainAspectRatio && targetWidth && targetHeight) {
             const aspectRatio = originalWidth / originalHeight
@@ -57,8 +79,8 @@ export class ImageProcessor {
             targetWidth = (targetHeight / originalHeight) * originalWidth
           }
 
-          canvas.width = targetWidth || originalWidth
-          canvas.height = targetHeight || originalHeight
+          canvas.width = Math.max(1, Math.floor(targetWidth || originalWidth))
+          canvas.height = Math.max(1, Math.floor(targetHeight || originalHeight))
 
           // Apply background color if needed
           if (options.backgroundColor && options.outputFormat !== "png") {
@@ -80,9 +102,10 @@ export class ImageProcessor {
             ctx.translate(-canvas.width / 2, -canvas.height / 2)
           }
 
-          // Handle rotation
-          if (options.rotation) {
-            const angle = (options.rotation * Math.PI) / 180
+          // Handle rotation (including custom rotation)
+          const rotationAngle = options.customRotation !== undefined ? options.customRotation : (options.rotation || 0)
+          if (rotationAngle) {
+            const angle = (rotationAngle * Math.PI) / 180
             ctx.translate(canvas.width / 2, canvas.height / 2)
             ctx.rotate(angle)
             ctx.translate(-canvas.width / 2, -canvas.height / 2)
@@ -105,6 +128,10 @@ export class ImageProcessor {
             }
           }
 
+          // Enhanced image rendering with better quality
+          ctx.imageSmoothingEnabled = true
+          ctx.imageSmoothingQuality = "high"
+          
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
           ctx.restore()
 
@@ -147,25 +174,31 @@ export class ImageProcessor {
           let canvasWidth = img.naturalWidth
           let canvasHeight = img.naturalHeight
 
-          // Apply compression level scaling
+          // Apply compression level scaling - FIXED maximum compression
           let scaleFactor = 1
+          let qualityMultiplier = 1
+          
           switch (options.compressionLevel) {
             case "low":
-              scaleFactor = 0.95
+              scaleFactor = 0.98
+              qualityMultiplier = 0.95
               break
             case "medium":
               scaleFactor = 0.85
+              qualityMultiplier = 0.8
               break
             case "high":
-              scaleFactor = 0.7
+              scaleFactor = 0.65
+              qualityMultiplier = 0.6
               break
             case "maximum":
-              scaleFactor = 0.5
+              scaleFactor = 0.4  // Much more aggressive scaling
+              qualityMultiplier = 0.3  // Lower quality for maximum compression
               break
           }
 
-          canvasWidth = Math.floor(canvasWidth * scaleFactor)
-          canvasHeight = Math.floor(canvasHeight * scaleFactor)
+          canvasWidth = Math.max(50, Math.floor(canvasWidth * scaleFactor))
+          canvasHeight = Math.max(50, Math.floor(canvasHeight * scaleFactor))
 
           canvas.width = canvasWidth
           canvas.height = canvasHeight
@@ -176,27 +209,33 @@ export class ImageProcessor {
             ctx.fillRect(0, 0, canvas.width, canvas.height)
           }
 
+          // Enhanced rendering for better compression
+          ctx.imageSmoothingEnabled = options.compressionLevel !== "maximum"
+          ctx.imageSmoothingQuality = options.compressionLevel === "maximum" ? "low" : "high"
+          
           ctx.drawImage(img, 0, 0, canvasWidth, canvasHeight)
 
-          // Calculate quality based on compression level
-          let quality = options.quality || 80
+          // Calculate quality based on compression level - FIXED
+          let quality = (options.quality || 80) * qualityMultiplier
+          
+          // Ensure minimum quality bounds
           switch (options.compressionLevel) {
             case "low":
               quality = Math.max(quality, 85)
               break
             case "medium":
-              quality = Math.min(Math.max(quality, 60), 85)
+              quality = Math.max(30, Math.min(quality, 85))
               break
             case "high":
-              quality = Math.min(Math.max(quality, 30), 60)
+              quality = Math.max(15, Math.min(quality, 50))
               break
             case "maximum":
-              quality = Math.min(quality, 40)
+              quality = Math.max(5, Math.min(quality, 25))  // Very low quality for maximum compression
               break
           }
 
           const mimeType = `image/${options.outputFormat || "jpeg"}`
-          const normalizedQuality = Math.max(0.1, Math.min(1.0, quality / 100))
+          const normalizedQuality = Math.max(0.05, Math.min(1.0, quality / 100))
 
           canvas.toBlob(
             (blob) => {
@@ -231,12 +270,27 @@ export class ImageProcessor {
       const img = new Image()
       img.onload = () => {
         try {
-          // Ensure cropArea has valid values with proper defaults
-          const validCropArea = {
-            x: Math.max(0, Math.min(90, cropArea?.x || 10)),
-            y: Math.max(0, Math.min(90, cropArea?.y || 10)),
-            width: Math.max(10, Math.min(90, cropArea?.width || 80)),
-            height: Math.max(10, Math.min(90, cropArea?.height || 80))
+          // FIXED: Better crop area validation and handling
+          let validCropArea
+          
+          if (cropArea && typeof cropArea === 'object') {
+            validCropArea = {
+              x: Math.max(0, Math.min(95, cropArea.x || 10)),
+              y: Math.max(0, Math.min(95, cropArea.y || 10)),
+              width: Math.max(5, Math.min(90, cropArea.width || 80)),
+              height: Math.max(5, Math.min(90, cropArea.height || 80))
+            }
+          } else {
+            // Default crop area if none provided
+            validCropArea = { x: 10, y: 10, width: 80, height: 80 }
+          }
+
+          // Ensure crop area doesn't exceed image bounds
+          if (validCropArea.x + validCropArea.width > 100) {
+            validCropArea.width = 100 - validCropArea.x
+          }
+          if (validCropArea.y + validCropArea.height > 100) {
+            validCropArea.height = 100 - validCropArea.y
           }
 
           // Convert percentage to pixels
@@ -264,6 +318,10 @@ export class ImageProcessor {
             ctx.fillStyle = options.backgroundColor
             ctx.fillRect(0, 0, canvas.width, canvas.height)
           }
+
+          // Enhanced cropping with better quality
+          ctx.imageSmoothingEnabled = true
+          ctx.imageSmoothingQuality = "high"
 
           // Draw cropped image
           ctx.drawImage(
@@ -308,7 +366,11 @@ export class ImageProcessor {
       const img = new Image()
       img.onload = () => {
         try {
-          const angle = ((options.rotation || 0) * Math.PI) / 180
+          // FIXED: Handle custom rotation properly
+          const angle = options.customRotation !== undefined ? 
+            (options.customRotation * Math.PI) / 180 : 
+            ((options.rotation || 0) * Math.PI) / 180
+            
           const { naturalWidth: width, naturalHeight: height } = img
 
           // Calculate new canvas dimensions after rotation
@@ -325,6 +387,10 @@ export class ImageProcessor {
             ctx.fillStyle = options.backgroundColor
             ctx.fillRect(0, 0, canvas.width, canvas.height)
           }
+
+          // Enhanced rotation with better quality
+          ctx.imageSmoothingEnabled = true
+          ctx.imageSmoothingQuality = "high"
 
           // Move to center and rotate
           ctx.translate(newWidth / 2, newHeight / 2)
@@ -372,9 +438,10 @@ export class ImageProcessor {
 
           ctx.drawImage(img, 0, 0)
 
-          // Calculate font size based on image dimensions
-          const baseFontSize = Math.min(canvas.width, canvas.height) * 0.05
-          const fontSize = baseFontSize * ((options.quality || 50) / 50)
+          // FIXED: Better font size calculation
+          const baseFontSize = Math.min(canvas.width, canvas.height) * 0.08
+          const fontSizeMultiplier = (options.quality || 50) / 50
+          const fontSize = Math.max(12, baseFontSize * fontSizeMultiplier)
           
           ctx.font = `bold ${fontSize}px Arial`
           ctx.fillStyle = options.textColor || "#ffffff"
@@ -422,10 +489,10 @@ export class ImageProcessor {
 
           // Add text shadow if enabled
           if (options.shadowEnabled) {
-            ctx.shadowColor = "rgba(0, 0, 0, 0.5)"
-            ctx.shadowBlur = 4
-            ctx.shadowOffsetX = 2
-            ctx.shadowOffsetY = 2
+            ctx.shadowColor = "rgba(0, 0, 0, 0.8)"
+            ctx.shadowBlur = 6
+            ctx.shadowOffsetX = 3
+            ctx.shadowOffsetY = 3
           }
 
           ctx.fillText(watermarkText, x, y)
@@ -475,7 +542,7 @@ export class ImageProcessor {
 
           ctx.drawImage(img, 0, 0)
 
-          // Enhanced background removal with better edge detection
+          // FIXED: Enhanced background removal with proper sensitivity handling
           const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
           const data = imageData.data
 
@@ -494,10 +561,10 @@ export class ImageProcessor {
           // Find most common background color
           const bgColor = bgColors[0] // Simplified - use corner color
 
-          // Enhanced sensitivity and smoothing
-          const sensitivity = Math.max(10, Math.min(100, options.quality || 30))
-          const threshold = sensitivity * 2.5
-          const smoothing = Math.max(0, Math.min(10, (options.quality || 2) / 10))
+          // FIXED: Enhanced sensitivity and smoothing with proper ranges
+          const sensitivity = Math.max(10, Math.min(100, options.sensitivity || 30))
+          const threshold = sensitivity * 3.5  // Increased multiplier for better detection
+          const smoothing = Math.max(0, Math.min(10, options.smoothing || 2))
 
           for (let i = 0; i < data.length; i += 4) {
             const r = data[i]
@@ -509,17 +576,23 @@ export class ImageProcessor {
             )
 
             if (colorDistance < threshold) {
-              // Apply feathering for smoother edges
-              const fadeDistance = threshold * 0.3
-              if (colorDistance > threshold - fadeDistance) {
-                const alpha = ((colorDistance - (threshold - fadeDistance)) / fadeDistance) * 255
-                data[i + 3] = Math.min(255, alpha)
+              // Apply feathering for smoother edges if enabled
+              if (options.featherEdges) {
+                const fadeDistance = threshold * 0.4
+                if (colorDistance > threshold - fadeDistance) {
+                  const alpha = ((colorDistance - (threshold - fadeDistance)) / fadeDistance) * 255
+                  data[i + 3] = Math.min(255, alpha)
+                } else {
+                  data[i + 3] = 0 // Make transparent
+                }
               } else {
                 data[i + 3] = 0 // Make transparent
               }
             } else {
               // Preserve original alpha for non-background pixels
-              data[i + 3] = Math.min(255, data[i + 3])
+              if (options.preserveDetails) {
+                data[i + 3] = Math.min(255, data[i + 3])
+              }
             }
           }
 
@@ -597,6 +670,13 @@ export class ImageProcessor {
           const { naturalWidth: originalWidth, naturalHeight: originalHeight } = img
 
           // Handle resizing during conversion
+          if (options.resizeWidth && options.resizeWidth > 0) {
+            targetWidth = options.resizeWidth
+          }
+          if (options.resizeHeight && options.resizeHeight > 0) {
+            targetHeight = options.resizeHeight
+          }
+
           if (targetWidth && targetHeight) {
             if (options.maintainAspectRatio) {
               const aspectRatio = originalWidth / originalHeight
@@ -611,8 +691,8 @@ export class ImageProcessor {
             targetHeight = originalHeight
           }
 
-          canvas.width = targetWidth
-          canvas.height = targetHeight
+          canvas.width = Math.max(1, Math.floor(targetWidth))
+          canvas.height = Math.max(1, Math.floor(targetHeight))
 
           // Add background color for formats that don't support transparency
           if (options.backgroundColor && outputFormat !== "png") {
@@ -634,11 +714,12 @@ export class ImageProcessor {
             ctx.translate(-canvas.width / 2, -canvas.height / 2)
           }
 
-          // Handle rotation
-          if (options.rotation) {
-            const angle = (options.rotation * Math.PI) / 180
+          // Handle rotation (including custom rotation)
+          const rotationAngle = options.customRotation !== undefined ? options.customRotation : (options.rotation || 0)
+          if (rotationAngle) {
+            const rotAngle = (rotationAngle * Math.PI) / 180
             ctx.translate(canvas.width / 2, canvas.height / 2)
-            ctx.rotate(angle)
+            ctx.rotate(rotAngle)
             ctx.translate(-canvas.width / 2, -canvas.height / 2)
           }
 
@@ -659,6 +740,10 @@ export class ImageProcessor {
             }
           }
 
+          // Enhanced rendering
+          ctx.imageSmoothingEnabled = true
+          ctx.imageSmoothingQuality = "high"
+          
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
           ctx.restore()
 
@@ -701,14 +786,22 @@ export class ImageProcessor {
           canvas.width = img.naturalWidth
           canvas.height = img.naturalHeight
 
-          // Apply CSS filters
+          // FIXED: Enhanced filter application
           const filters = []
           const { brightness, contrast, saturation, blur, sepia, grayscale } = options.filters
 
-          if (brightness !== undefined && brightness !== 100) filters.push(`brightness(${brightness}%)`)
-          if (contrast !== undefined && contrast !== 100) filters.push(`contrast(${contrast}%)`)
-          if (saturation !== undefined && saturation !== 100) filters.push(`saturate(${saturation}%)`)
-          if (blur !== undefined && blur > 0) filters.push(`blur(${blur}px)`)
+          if (brightness !== undefined && brightness !== 100) {
+            filters.push(`brightness(${Math.max(0, Math.min(300, brightness))}%)`)
+          }
+          if (contrast !== undefined && contrast !== 100) {
+            filters.push(`contrast(${Math.max(0, Math.min(300, contrast))}%)`)
+          }
+          if (saturation !== undefined && saturation !== 100) {
+            filters.push(`saturate(${Math.max(0, Math.min(300, saturation))}%)`)
+          }
+          if (blur !== undefined && blur > 0) {
+            filters.push(`blur(${Math.max(0, Math.min(50, blur))}px)`)
+          }
           if (sepia) filters.push("sepia(100%)")
           if (grayscale) filters.push("grayscale(100%)")
 
@@ -716,6 +809,10 @@ export class ImageProcessor {
             ctx.filter = filters.join(" ")
           }
 
+          // Enhanced rendering
+          ctx.imageSmoothingEnabled = true
+          ctx.imageSmoothingQuality = "high"
+          
           ctx.drawImage(img, 0, 0)
 
           const quality = Math.max(0.1, Math.min(1.0, (options.quality || 90) / 100))
