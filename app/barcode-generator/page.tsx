@@ -100,7 +100,14 @@ export default function BarcodeGeneratorPage() {
   }
 
   const downloadBarcode = (format: string) => {
-    if (!barcodeDataUrl) return
+    if (!barcodeDataUrl) {
+      toast({
+        title: "No barcode to download",
+        description: "Please generate a barcode first",
+        variant: "destructive"
+      })
+      return
+    }
 
     const link = document.createElement("a")
     link.download = `barcode.${format}`
@@ -195,7 +202,7 @@ export default function BarcodeGeneratorPage() {
                       PNG
                     </Button>
                     <Button variant="outline" onClick={() => downloadBarcode("svg")}>
-                      SVG
+                      <span className="text-xs">SVG</span>
                     </Button>
                     <Button variant="outline" onClick={copyToClipboard}>
                       <Copy className="h-4 w-4 mr-2" />

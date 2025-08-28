@@ -174,7 +174,7 @@ export class ImageProcessor {
           let canvasWidth = img.naturalWidth
           let canvasHeight = img.naturalHeight
 
-          // Apply compression level scaling - FIXED maximum compression
+          // Apply compression level scaling
           let scaleFactor = 1
           let qualityMultiplier = 1
           
@@ -192,8 +192,8 @@ export class ImageProcessor {
               qualityMultiplier = 0.6
               break
             case "maximum":
-              scaleFactor = 0.4  // Much more aggressive scaling
-              qualityMultiplier = 0.3  // Lower quality for maximum compression
+              scaleFactor = 0.4
+              qualityMultiplier = 0.3
               break
           }
 
@@ -215,7 +215,7 @@ export class ImageProcessor {
           
           ctx.drawImage(img, 0, 0, canvasWidth, canvasHeight)
 
-          // Calculate quality based on compression level - FIXED
+          // Calculate quality based on compression level
           let quality = (options.quality || 80) * qualityMultiplier
           
           // Ensure minimum quality bounds
@@ -230,7 +230,7 @@ export class ImageProcessor {
               quality = Math.max(15, Math.min(quality, 50))
               break
             case "maximum":
-              quality = Math.max(5, Math.min(quality, 25))  // Very low quality for maximum compression
+              quality = Math.max(5, Math.min(quality, 25))
               break
           }
 
@@ -271,7 +271,7 @@ export class ImageProcessor {
       const img = new Image()
       img.onload = () => {
         try {
-          // FIXED: Better crop area validation and handling
+          // Better crop area validation and handling
           let validCropArea
           
           if (cropArea && typeof cropArea === 'object') {
@@ -367,7 +367,7 @@ export class ImageProcessor {
       const img = new Image()
       img.onload = () => {
         try {
-          // FIXED: Handle custom rotation properly
+          // Handle custom rotation properly
           const angle = options.customRotation !== undefined ? 
             (options.customRotation * Math.PI) / 180 : 
             ((options.rotation || 0) * Math.PI) / 180
@@ -439,7 +439,7 @@ export class ImageProcessor {
 
           ctx.drawImage(img, 0, 0)
 
-          // FIXED: Better font size calculation
+          // Better font size calculation
           const baseFontSize = Math.min(canvas.width, canvas.height) * 0.08
           const fontSizeMultiplier = (options.quality || 50) / 50
           const fontSize = Math.max(12, baseFontSize * fontSizeMultiplier)
@@ -543,7 +543,7 @@ export class ImageProcessor {
 
           ctx.drawImage(img, 0, 0)
 
-          // FIXED: Enhanced background removal with proper sensitivity handling
+          // Enhanced background removal with proper sensitivity handling
           const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
           const data = imageData.data
 
@@ -562,9 +562,9 @@ export class ImageProcessor {
           // Find most common background color
           const bgColor = bgColors[0] // Simplified - use corner color
 
-          // FIXED: Enhanced sensitivity and smoothing with proper ranges
+          // Enhanced sensitivity and smoothing with proper ranges
           const sensitivity = Math.max(10, Math.min(100, options.sensitivity || 30))
-          const threshold = sensitivity * 3.5  // Increased multiplier for better detection
+          const threshold = sensitivity * 3.5
           const smoothing = Math.max(0, Math.min(10, options.smoothing || 2))
 
           for (let i = 0; i < data.length; i += 4) {
@@ -787,7 +787,7 @@ export class ImageProcessor {
           canvas.width = img.naturalWidth
           canvas.height = img.naturalHeight
 
-          // FIXED: Enhanced filter application
+          // Enhanced filter application
           const filters = []
           const { brightness, contrast, saturation, blur, sepia, grayscale } = options.filters
 

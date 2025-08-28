@@ -11,15 +11,10 @@ import { Slider } from "@/components/ui/slider"
 import { Progress } from "@/components/ui/progress"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { AdBanner } from "@/components/ads/ad-banner"
 import { 
   Upload, 
   Download, 
   Trash2, 
-  RotateCw, 
-  RotateCcw,
-  FlipHorizontal,
-  FlipVertical,
   X,
   ArrowLeft,
   CheckCircle,
@@ -27,7 +22,6 @@ import {
   ZoomIn,
   ZoomOut,
   Move,
-  Crop,
   Maximize2,
   AlertCircle,
   Info
@@ -104,9 +98,9 @@ export function ImageToolsLayout({
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 })
   const [isPanning, setIsPanning] = useState(false)
   const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 })
-  const [isResizing, setIsResizing] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const imageRef = useRef<HTMLImageElement>(null)
+  const canvasRef = useRef<HTMLDivElement>(null)
 
   // Initialize options with defaults
   useEffect(() => {
@@ -262,8 +256,8 @@ export function ImageToolsLayout({
     const y = ((e.clientY - rect.top) / rect.height) * 100
     
     // Ensure coordinates are within bounds
-    const boundedX = Math.max(0, Math.min(100, x))
-    const boundedY = Math.max(0, Math.min(100, y))
+    const boundedX = Math.max(0, Math.min(95, x))
+    const boundedY = Math.max(0, Math.min(95, y))
     
     setDragStart({ x: boundedX, y: boundedY })
     setIsDragging(true)
@@ -294,22 +288,24 @@ export function ImageToolsLayout({
     // Apply aspect ratio constraint if set
     if (toolOptions.aspectRatio && toolOptions.aspectRatio !== "free") {
       const [ratioW, ratioH] = toolOptions.aspectRatio.split(':').map(Number)
-      const targetRatio = ratioW / ratioH
-      
-      if (newSelection.width / newSelection.height > targetRatio) {
-        newSelection.width = newSelection.height * targetRatio
-      } else {
-        newSelection.height = newSelection.width / targetRatio
-      }
-      
-      // Ensure selection stays within bounds
-      if (newSelection.x + newSelection.width > 100) {
-        newSelection.width = 100 - newSelection.x
-        newSelection.height = newSelection.width / targetRatio
-      }
-      if (newSelection.y + newSelection.height > 100) {
-        newSelection.height = 100 - newSelection.y
-        newSelection.width = newSelection.height * targetRatio
+      if (ratioW && ratioH) {
+        const targetRatio = ratioW / ratioH
+        
+        if (newSelection.width / newSelection.height > targetRatio) {
+          newSelection.width = newSelection.height * targetRatio
+        } else {
+          newSelection.height = newSelection.width / targetRatio
+        }
+        
+        // Ensure selection stays within bounds
+        if (newSelection.x + newSelection.width > 100) {
+          newSelection.width = 100 - newSelection.x
+          newSelection.height = newSelection.width / targetRatio
+        }
+        if (newSelection.y + newSelection.height > 100) {
+          newSelection.height = 100 - newSelection.y
+          newSelection.width = newSelection.height * targetRatio
+        }
       }
     }
     
@@ -330,40 +326,6 @@ export function ImageToolsLayout({
           : file
       ))
     }
-  }
-
-  // Pan and zoom functionality
-  const handlePanStart = (e: React.MouseEvent) => {
-    if (toolType === "crop" || isDragging) return
-    setIsPanning(true)
-    setLastPanPoint({ x: e.clientX, y: e.clientY })
-  }
-
-  const handlePanMove = (e: React.MouseEvent) => {
-    if (!isPanning || toolType === "crop") return
-    
-    const deltaX = e.clientX - lastPanPoint.x
-    const deltaY = e.clientY - lastPanPoint.y
-    
-    setPanOffset(prev => ({
-      x: prev.x + deltaX,
-      y: prev.y + deltaY
-    }))
-    
-    setLastPanPoint({ x: e.clientX, y: e.clientY })
-  }
-
-  const handlePanEnd = () => {
-    setIsPanning(false)
-  }
-
-  const handleZoom = (delta: number) => {
-    setZoomLevel(prev => Math.max(25, Math.min(400, prev + delta)))
-  }
-
-  const resetView = () => {
-    setZoomLevel(100)
-    setPanOffset({ x: 0, y: 0 })
   }
 
   const handleProcess = async () => {
@@ -420,7 +382,7 @@ export function ImageToolsLayout({
     }
   }
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (processedFiles.length === 1) {
       const file = processedFiles[0]
       if (file.blob) {
@@ -432,9 +394,15 @@ export function ImageToolsLayout({
         link.click()
         document.body.removeChild(link)
         URL.revokeObjectURL(url)
+        
+        toast({
+          title: "Download started",
+          description: `${file.name} downloaded successfully`
+        })
       }
     } else if (processedFiles.length > 1) {
-      import("jszip").then(({ default: JSZip }) => {
+      try {
+        const JSZip = (await import("jszip")).default
         const zip = new JSZip()
         
         processedFiles.forEach(file => {
@@ -443,17 +411,27 @@ export function ImageToolsLayout({
           }
         })
 
-        zip.generateAsync({ type: "blob" }).then(zipBlob => {
-          const url = URL.createObjectURL(zipBlob)
-          const link = document.createElement("a")
-          link.href = url
-          link.download = `${toolType}_images.zip`
-          document.body.appendChild(link)
-          link.click()
-          document.body.removeChild(link)
-          URL.revokeObjectURL(url)
+        const zipBlob = await zip.generateAsync({ type: "blob" })
+        const url = URL.createObjectURL(zipBlob)
+        const link = document.createElement("a")
+        link.href = url
+        link.download = `${toolType}_images.zip`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(url)
+        
+        toast({
+          title: "Download started",
+          description: `ZIP file with ${processedFiles.length} images downloaded`
         })
-      })
+      } catch (error) {
+        toast({
+          title: "Download failed",
+          description: "Failed to create ZIP file",
+          variant: "destructive"
+        })
+      }
     }
   }
 
@@ -477,9 +455,9 @@ export function ImageToolsLayout({
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-gray-50">
-      {/* Left Canvas - Enhanced Image Preview */}
+      {/* Left Canvas - Fixed Image Preview */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Enhanced Header */}
+        {/* Header */}
         <div className="bg-white border-b px-6 py-4 flex items-center justify-between shadow-sm">
           <div className="flex items-center space-x-4">
             <Link href="/">
@@ -508,14 +486,14 @@ export function ImageToolsLayout({
             </Button>
             {currentFile && (
               <div className="flex items-center space-x-1 border rounded-md">
-                <Button variant="ghost" size="sm" onClick={() => handleZoom(-25)}>
+                <Button variant="ghost" size="sm" onClick={() => setZoomLevel(prev => Math.max(25, prev - 25))}>
                   <ZoomOut className="h-4 w-4" />
                 </Button>
                 <span className="text-sm px-2">{zoomLevel}%</span>
-                <Button variant="ghost" size="sm" onClick={() => handleZoom(25)}>
+                <Button variant="ghost" size="sm" onClick={() => setZoomLevel(prev => Math.min(400, prev + 25))}>
                   <ZoomIn className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="sm" onClick={resetView}>
+                <Button variant="ghost" size="sm" onClick={() => { setZoomLevel(100); setPanOffset({ x: 0, y: 0 }) }}>
                   <Maximize2 className="h-4 w-4" />
                 </Button>
               </div>
@@ -523,7 +501,7 @@ export function ImageToolsLayout({
           </div>
         </div>
 
-        {/* Canvas Content */}
+        {/* Canvas Content - Fixed viewport and crop functionality */}
         <div className="flex-1 overflow-hidden">
           {files.length === 0 ? (
             <div className="h-full flex flex-col">
@@ -552,23 +530,16 @@ export function ImageToolsLayout({
                       Maximum {maxFiles} files • Up to 100MB each
                     </p>
                   </div>
-                  {singleFileOnly && (
-                    <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
-                      <p className="text-sm text-blue-700 font-medium flex items-center">
-                        <Crop className="h-4 w-4 mr-2" />
-                        Single file mode for precision editing
-                      </p>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
           ) : (
             <div className="h-full flex flex-col">
-              <ScrollArea className="flex-1">
-                <div className="flex items-center justify-center p-6 min-h-full">
+              {/* Fixed Image Canvas with proper viewport */}
+              <div className="flex-1 overflow-hidden relative bg-gray-100" ref={canvasRef}>
+                <div className="absolute inset-0 flex items-center justify-center p-4">
                   {currentFile && (
-                    <div className="relative group">
+                    <div className="relative group max-w-full max-h-full">
                       <div 
                         className="relative inline-block transition-transform duration-200 select-none"
                         style={{ 
@@ -576,19 +547,26 @@ export function ImageToolsLayout({
                           maxWidth: "calc(100vw - 400px)",
                           maxHeight: "calc(100vh - 200px)"
                         }}
-                        onMouseDown={toolType === "crop" ? undefined : handlePanStart}
-                        onMouseMove={toolType === "crop" ? undefined : handlePanMove}
-                        onMouseUp={toolType === "crop" ? undefined : handlePanEnd}
-                        onMouseLeave={toolType === "crop" ? undefined : handlePanEnd}
+                        onMouseDown={toolType === "crop" ? undefined : (e) => {
+                          setIsPanning(true)
+                          setLastPanPoint({ x: e.clientX, y: e.clientY })
+                        }}
+                        onMouseMove={toolType === "crop" ? undefined : (e) => {
+                          if (!isPanning) return
+                          const deltaX = e.clientX - lastPanPoint.x
+                          const deltaY = e.clientY - lastPanPoint.y
+                          setPanOffset(prev => ({ x: prev.x + deltaX, y: prev.y + deltaY }))
+                          setLastPanPoint({ x: e.clientX, y: e.clientY })
+                        }}
+                        onMouseUp={toolType === "crop" ? undefined : () => setIsPanning(false)}
+                        onMouseLeave={toolType === "crop" ? undefined : () => setIsPanning(false)}
                       >
                         <img
                           ref={imageRef}
                           src={currentFile.processedPreview || currentFile.preview}
                           alt={currentFile.name}
-                          className="w-full h-full object-contain border border-gray-300 rounded-lg shadow-lg bg-white"
+                          className="max-w-full max-h-[70vh] object-contain border border-gray-300 rounded-lg shadow-lg bg-white"
                           style={{ 
-                            maxWidth: "100%",
-                            maxHeight: "100%",
                             userSelect: "none",
                             cursor: toolType === "crop" ? "crosshair" : isPanning ? "grabbing" : "grab"
                           }}
@@ -599,7 +577,7 @@ export function ImageToolsLayout({
                           draggable={false}
                         />
                         
-                        {/* Enhanced Crop Overlay */}
+                        {/* Fixed Crop Overlay */}
                         {toolType === "crop" && cropSelection && (
                           <div
                             className="absolute border-2 border-blue-500 bg-blue-500/20 pointer-events-none"
@@ -621,22 +599,6 @@ export function ImageToolsLayout({
                             </div>
                           </div>
                         )}
-                        
-                        {/* Quick Actions Overlay */}
-                        <div className="absolute top-4 right-4 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur-sm rounded-lg p-2 shadow-lg">
-                          <Button size="sm" variant="secondary" onClick={() => {}}>
-                            <RotateCcw className="h-3 w-3" />
-                          </Button>
-                          <Button size="sm" variant="secondary" onClick={() => {}}>
-                            <RotateCw className="h-3 w-3" />
-                          </Button>
-                          <Button size="sm" variant="secondary" onClick={() => {}}>
-                            <FlipHorizontal className="h-3 w-3" />
-                          </Button>
-                          <Button size="sm" variant="secondary" onClick={() => {}}>
-                            <FlipVertical className="h-3 w-3" />
-                          </Button>
-                        </div>
 
                         {/* Image Info Overlay */}
                         <div className="absolute bottom-4 left-4 bg-black/70 text-white text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
@@ -650,7 +612,7 @@ export function ImageToolsLayout({
                     </div>
                   )}
                 </div>
-              </ScrollArea>
+              </div>
 
               {/* File Thumbnails Bar */}
               {files.length > 1 && (
@@ -697,10 +659,10 @@ export function ImageToolsLayout({
         </div>
       </div>
 
-      {/* Right Sidebar - Enhanced */}
-      <div className="w-80 bg-white border-l shadow-lg flex flex-col">
+      {/* Right Sidebar - Fixed overflow and scrolling */}
+      <div className="w-80 bg-white border-l shadow-lg flex flex-col max-h-screen">
         {/* Sidebar Header */}
-        <div className="px-6 py-4 border-b bg-gray-50">
+        <div className="px-6 py-4 border-b bg-gray-50 flex-shrink-0">
           <div className="flex items-center space-x-2">
             <Icon className="h-5 w-5 text-blue-600" />
             <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
@@ -708,266 +670,266 @@ export function ImageToolsLayout({
           <p className="text-sm text-gray-600 mt-1">{description}</p>
         </div>
 
-        {/* Sidebar Content */}
-        <ScrollArea className="flex-1">
-          <div className="p-6 space-y-6">
-            {/* Quick Presets */}
-            {presets.length > 0 && (
-              <div className="space-y-3">
-                <Label className="text-sm font-medium">Quick Presets</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {presets.map((preset) => (
-                    <Button
-                      key={preset.name}
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setToolOptions(prev => ({ ...prev, ...preset.values }))
-                      }}
-                      className="text-xs h-8"
-                    >
-                      {preset.name}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Crop Selection Info */}
-            {toolType === "crop" && cropSelection && currentFile && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <span className="text-gray-600">Selection:</span>
-                    <div>{Math.round(cropSelection.width)}% × {Math.round(cropSelection.height)}%</div>
+        {/* Sidebar Content - Fixed scrolling */}
+        <div className="flex-1 overflow-hidden flex flex-col">
+          <ScrollArea className="flex-1">
+            <div className="p-6 space-y-6">
+              {/* Quick Presets */}
+              {presets.length > 0 && (
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Quick Presets</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {presets.map((preset) => (
+                      <Button
+                        key={preset.name}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setToolOptions(prev => ({ ...prev, ...preset.values }))
+                        }}
+                        className="text-xs h-8"
+                      >
+                        {preset.name}
+                      </Button>
+                    ))}
                   </div>
-                  <div>
-                    <span className="text-gray-600">Pixels:</span>
+                </div>
+              )}
+
+              {/* Crop Selection Info */}
+              {toolType === "crop" && cropSelection && currentFile && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs">
+                  <div className="grid grid-cols-2 gap-2">
                     <div>
-                      {Math.round((cropSelection.width / 100) * currentFile.dimensions.width)} × {Math.round((cropSelection.height / 100) * currentFile.dimensions.height)}
+                      <span className="text-gray-600">Selection:</span>
+                      <div>{Math.round(cropSelection.width)}% × {Math.round(cropSelection.height)}%</div>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Pixels:</span>
+                      <div>
+                        {Math.round((cropSelection.width / 100) * currentFile.dimensions.width)} × {Math.round((cropSelection.height / 100) * currentFile.dimensions.height)}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Grouped Options */}
-            {Object.entries(groupedOptions).map(([section, sectionOptions]) => (
-              <div key={section} className="space-y-4">
-                {section !== "General" && (
-                  <div className="flex items-center space-x-2">
-                    <div className="h-px bg-gray-200 flex-1"></div>
-                    <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{section}</Label>
-                    <div className="h-px bg-gray-200 flex-1"></div>
-                  </div>
-                )}
-                
-                {sectionOptions.map((option) => {
-                  // Check condition if exists
-                  if (option.condition && !option.condition(toolOptions)) {
-                    return null
-                  }
+              {/* Grouped Options */}
+              {Object.entries(groupedOptions).map(([section, sectionOptions]) => (
+                <div key={section} className="space-y-4">
+                  {section !== "General" && (
+                    <div className="flex items-center space-x-2">
+                      <div className="h-px bg-gray-200 flex-1"></div>
+                      <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{section}</Label>
+                      <div className="h-px bg-gray-200 flex-1"></div>
+                    </div>
+                  )}
+                  
+                  {sectionOptions.map((option) => {
+                    // Check condition if exists
+                    if (option.condition && !option.condition(toolOptions)) {
+                      return null
+                    }
 
-                  return (
-                    <div key={option.key} className="space-y-2">
-                      <Label className="text-sm font-medium">{option.label}</Label>
-                      
-                      {option.type === "select" && (
-                        <Select
-                          value={toolOptions[option.key]?.toString()}
-                          onValueChange={(value) => {
-                            setToolOptions(prev => ({ ...prev, [option.key]: value }))
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {option.selectOptions?.map((opt) => (
-                              <SelectItem key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-
-                      {option.type === "slider" && (
-                        <div className="space-y-2">
-                          <Slider
-                            value={[toolOptions[option.key] || option.defaultValue]}
-                            onValueChange={([value]) => setToolOptions(prev => ({ ...prev, [option.key]: value }))}
-                            min={option.min}
-                            max={option.max}
-                            step={option.step}
-                          />
-                          <div className="flex justify-between text-xs text-gray-500">
-                            <span>{option.min}</span>
-                            <span className="font-medium">{toolOptions[option.key] || option.defaultValue}</span>
-                            <span>{option.max}</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {option.type === "input" && (
-                        <Input
-                          type="number"
-                          value={toolOptions[option.key] || option.defaultValue}
-                          onChange={(e) => {
-                            setToolOptions(prev => ({ ...prev, [option.key]: parseInt(e.target.value) || option.defaultValue }))
-                          }}
-                          min={option.min}
-                          max={option.max}
-                        />
-                      )}
-
-                      {option.type === "checkbox" && (
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            checked={toolOptions[option.key] || false}
-                            onCheckedChange={(checked) => {
-                              setToolOptions(prev => ({ ...prev, [option.key]: checked }))
+                    return (
+                      <div key={option.key} className="space-y-2">
+                        <Label className="text-sm font-medium">{option.label}</Label>
+                        
+                        {option.type === "select" && (
+                          <Select
+                            value={toolOptions[option.key]?.toString()}
+                            onValueChange={(value) => {
+                              setToolOptions(prev => ({ ...prev, [option.key]: value }))
                             }}
-                          />
-                          <span className="text-sm">{option.label}</span>
-                        </div>
-                      )}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {option.selectOptions?.map((opt) => (
+                                <SelectItem key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
 
-                      {option.type === "color" && (
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="color"
+                        {option.type === "slider" && (
+                          <div className="space-y-2">
+                            <Slider
+                              value={[toolOptions[option.key] || option.defaultValue]}
+                              onValueChange={([value]) => setToolOptions(prev => ({ ...prev, [option.key]: value }))}
+                              min={option.min}
+                              max={option.max}
+                              step={option.step}
+                            />
+                            <div className="flex justify-between text-xs text-gray-500">
+                              <span>{option.min}</span>
+                              <span className="font-medium">{toolOptions[option.key] || option.defaultValue}</span>
+                              <span>{option.max}</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {option.type === "input" && (
+                          <Input
+                            type="number"
                             value={toolOptions[option.key] || option.defaultValue}
                             onChange={(e) => {
-                              setToolOptions(prev => ({ ...prev, [option.key]: e.target.value }))
+                              setToolOptions(prev => ({ ...prev, [option.key]: parseInt(e.target.value) || option.defaultValue }))
                             }}
-                            className="w-12 h-8 border border-gray-300 rounded cursor-pointer"
+                            min={option.min}
+                            max={option.max}
                           />
+                        )}
+
+                        {option.type === "checkbox" && (
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              checked={toolOptions[option.key] || false}
+                              onCheckedChange={(checked) => {
+                                setToolOptions(prev => ({ ...prev, [option.key]: checked }))
+                              }}
+                            />
+                            <span className="text-sm">{option.label}</span>
+                          </div>
+                        )}
+
+                        {option.type === "color" && (
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="color"
+                              value={toolOptions[option.key] || option.defaultValue}
+                              onChange={(e) => {
+                                setToolOptions(prev => ({ ...prev, [option.key]: e.target.value }))
+                              }}
+                              className="w-12 h-8 border border-gray-300 rounded cursor-pointer"
+                            />
+                            <Input
+                              value={toolOptions[option.key] || option.defaultValue}
+                              onChange={(e) => {
+                                setToolOptions(prev => ({ ...prev, [option.key]: e.target.value }))
+                              }}
+                              className="flex-1"
+                            />
+                          </div>
+                        )}
+
+                        {option.type === "text" && (
                           <Input
                             value={toolOptions[option.key] || option.defaultValue}
                             onChange={(e) => {
                               setToolOptions(prev => ({ ...prev, [option.key]: e.target.value }))
                             }}
-                            className="flex-1"
+                            placeholder={option.label}
                           />
-                        </div>
-                      )}
-
-                      {option.type === "text" && (
-                        <Input
-                          value={toolOptions[option.key] || option.defaultValue}
-                          onChange={(e) => {
-                            setToolOptions(prev => ({ ...prev, [option.key]: e.target.value }))
-                          }}
-                          placeholder={option.label}
-                        />
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            ))}
-
-            {/* Ad Space */}
-          </div>
-        </ScrollArea>
-
-        {/* Enhanced Sidebar Footer */}
-        <div className="p-6 border-t bg-gray-50 space-y-3">
-          {/* Processing Status */}
-          {isProcessing && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
-              <div className="flex items-center space-x-2 mb-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                <span className="text-sm font-medium text-blue-800">Processing images...</span>
-              </div>
-              <Progress value={66} className="h-2" />
-              <p className="text-xs text-blue-600 mt-1">This may take a few moments</p>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              ))}
             </div>
-          )}
+          </ScrollArea>
 
-          {/* Error Display */}
-          {!isProcessing && files.length > 0 && processedFiles.length === 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
-              <div className="flex items-center space-x-2">
-                <Info className="h-4 w-4 text-amber-600" />
-                <span className="text-sm text-amber-800">Ready to process {files.length} image{files.length > 1 ? 's' : ''}</span>
-              </div>
-            </div>
-          )}
-
-          <Button 
-            onClick={handleProcess}
-            disabled={isProcessing || files.length === 0}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 text-base font-semibold"
-            size="lg"
-          >
-            {isProcessing ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Processing...
-              </>
-            ) : (
-              <>
-                {title.split(' ')[0]} {files.length > 1 ? `${files.length} Images` : 'Image'} →
-              </>
-            )}
-          </Button>
-
-          {processedFiles.length > 0 && (
-            <div className="space-y-2">
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+          {/* Fixed Sidebar Footer */}
+          <div className="p-6 border-t bg-gray-50 space-y-3 flex-shrink-0">
+            {/* Processing Status */}
+            {isProcessing && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
                 <div className="flex items-center space-x-2 mb-2">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <span className="text-sm font-medium text-green-800">Processing complete!</span>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  <span className="text-sm font-medium text-blue-800">Processing images...</span>
                 </div>
-                <p className="text-xs text-green-600">
-                  {processedFiles.length} image{processedFiles.length > 1 ? 's' : ''} processed successfully
-                </p>
+                <Progress value={66} className="h-2" />
+                <p className="text-xs text-blue-600 mt-1">This may take a few moments</p>
               </div>
-              
-              <Button 
-                onClick={handleDownload}
-                className="w-full bg-green-600 hover:bg-green-700 text-white py-3 text-base font-semibold"
-                size="lg"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Download {processedFiles.length > 1 ? "ZIP" : "Image"}
-              </Button>
-            </div>
-          )}
+            )}
 
-          {files.length > 0 && (
-            <div className="text-xs text-gray-500 space-y-1 pt-2 border-t">
-              <div className="flex justify-between">
-                <span>Total files:</span>
-                <span>{files.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Total size:</span>
-                <span>{formatFileSize(files.reduce((sum, file) => sum + file.size, 0))}</span>
-              </div>
-              {processedFiles.length > 0 && (
-                <div className="flex justify-between text-green-600">
-                  <span>Processed size:</span>
-                  <span>{formatFileSize(processedFiles.reduce((sum, file) => sum + (file.processedSize || file.size), 0))}</span>
+            {/* Ready Status */}
+            {!isProcessing && files.length > 0 && processedFiles.length === 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
+                <div className="flex items-center space-x-2">
+                  <Info className="h-4 w-4 text-amber-600" />
+                  <span className="text-sm text-amber-800">Ready to process {files.length} image{files.length > 1 ? 's' : ''}</span>
                 </div>
+              </div>
+            )}
+
+            <Button 
+              onClick={handleProcess}
+              disabled={isProcessing || files.length === 0}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 text-base font-semibold"
+              size="lg"
+            >
+              {isProcessing ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Processing...
+                </>
+              ) : (
+                <>
+                  {title.split(' ')[0]} {files.length > 1 ? `${files.length} Images` : 'Image'} →
+                </>
               )}
-              {processedFiles.length > 0 && (
-                <div className="flex justify-between text-blue-600">
-                  <span>Size reduction:</span>
-                  <span>
-                    {(() => {
-                      const originalSize = files.reduce((sum, file) => sum + file.size, 0)
-                      const processedSize = processedFiles.reduce((sum, file) => sum + (file.processedSize || file.size), 0)
-                      const reduction = ((originalSize - processedSize) / originalSize) * 100
-                      return reduction > 0 ? `${reduction.toFixed(1)}%` : "0%"
-                    })()}
-                  </span>
+            </Button>
+
+            {processedFiles.length > 0 && (
+              <div className="space-y-2">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <span className="text-sm font-medium text-green-800">Processing complete!</span>
+                  </div>
+                  <p className="text-xs text-green-600">
+                    {processedFiles.length} image{processedFiles.length > 1 ? 's' : ''} processed successfully
+                  </p>
                 </div>
-              )}
-            </div>
-          )}
+                
+                <Button 
+                  onClick={handleDownload}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white py-3 text-base font-semibold"
+                  size="lg"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download {processedFiles.length > 1 ? "ZIP" : "Image"}
+                </Button>
+              </div>
+            )}
+
+            {files.length > 0 && (
+              <div className="text-xs text-gray-500 space-y-1 pt-2 border-t">
+                <div className="flex justify-between">
+                  <span>Total files:</span>
+                  <span>{files.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Total size:</span>
+                  <span>{formatFileSize(files.reduce((sum, file) => sum + file.size, 0))}</span>
+                </div>
+                {processedFiles.length > 0 && (
+                  <>
+                    <div className="flex justify-between text-green-600">
+                      <span>Processed size:</span>
+                      <span>{formatFileSize(processedFiles.reduce((sum, file) => sum + (file.processedSize || file.size), 0))}</span>
+                    </div>
+                    <div className="flex justify-between text-blue-600">
+                      <span>Size reduction:</span>
+                      <span>
+                        {(() => {
+                          const originalSize = files.reduce((sum, file) => sum + file.size, 0)
+                          const processedSize = processedFiles.reduce((sum, file) => sum + (file.processedSize || file.size), 0)
+                          const reduction = ((originalSize - processedSize) / originalSize) * 100
+                          return reduction > 0 ? `${reduction.toFixed(1)}%` : "0%"
+                        })()}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

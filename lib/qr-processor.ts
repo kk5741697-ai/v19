@@ -130,7 +130,7 @@ export class QRProcessor {
         logoImage.onload = () => {
           try {
             // Calculate logo size and position
-            const logoSize = logo.width || qrSize * 0.15  // Slightly smaller for better scanning
+            const logoSize = logo.width || qrSize * 0.15
             const logoX = logo.x !== undefined ? logo.x : (qrSize - logoSize) / 2
             const logoY = logo.y !== undefined ? logo.y : (qrSize - logoSize) / 2
 

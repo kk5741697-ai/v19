@@ -131,38 +131,46 @@ export default function BulkQRGeneratorPage() {
   const downloadAll = async () => {
     if (generatedQRs.length === 0) return
 
-    const JSZip = (await import("jszip")).default
-    const zip = new JSZip()
+    try {
+      const JSZip = (await import("jszip")).default
+      const zip = new JSZip()
 
-    generatedQRs.forEach((qr) => {
-      // Convert data URL to blob
-      const base64Data = qr.dataURL.split(",")[1]
-      try {
-        const binaryData = atob(base64Data)
-        const bytes = new Uint8Array(binaryData.length)
-        
-        for (let i = 0; i < binaryData.length; i++) {
-          bytes[i] = binaryData.charCodeAt(i)
+      generatedQRs.forEach((qr) => {
+        // Convert data URL to blob
+        const base64Data = qr.dataURL.split(",")[1]
+        try {
+          const binaryData = atob(base64Data)
+          const bytes = new Uint8Array(binaryData.length)
+          
+          for (let i = 0; i < binaryData.length; i++) {
+            bytes[i] = binaryData.charCodeAt(i)
+          }
+          
+          zip.file(qr.filename, bytes)
+        } catch (error) {
+          console.error(`Failed to process QR ${qr.filename}:`, error)
         }
-        
-        zip.file(qr.filename, bytes)
-      } catch (error) {
-        console.error(`Failed to process QR ${qr.filename}:`, error)
-      }
-    })
+      })
 
-    const zipBlob = await zip.generateAsync({ type: "blob" })
-    const url = URL.createObjectURL(zipBlob)
-    const link = document.createElement("a")
-    link.href = url
-    link.download = "bulk-qr-codes.zip"
-    link.click()
-    URL.revokeObjectURL(url)
-    
-    toast({
-      title: "Download started",
-      description: "Bulk QR codes ZIP file downloaded"
-    })
+      const zipBlob = await zip.generateAsync({ type: "blob" })
+      const url = URL.createObjectURL(zipBlob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = "bulk-qr-codes.zip"
+      link.click()
+      URL.revokeObjectURL(url)
+      
+      toast({
+        title: "Download started",
+        description: "Bulk QR codes ZIP file downloaded"
+      })
+    } catch (error) {
+      toast({
+        title: "Download failed",
+        description: "Failed to create ZIP file",
+        variant: "destructive"
+      })
+    }
   }
 
   return (

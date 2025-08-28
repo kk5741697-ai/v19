@@ -271,7 +271,7 @@ export class PDFProcessor {
       const pages = await compressedPdf.copyPages(pdf, pdf.getPageIndices())
 
       pages.forEach((page) => {
-        // FIXED: Apply proper compression based on level
+        // Apply proper compression based on level
         let scaleFactor = 1
         switch (options.compressionLevel) {
           case "low":
@@ -284,7 +284,7 @@ export class PDFProcessor {
             scaleFactor = 0.6
             break
           case "maximum":
-            scaleFactor = 0.35  // Much more aggressive for maximum compression
+            scaleFactor = 0.35
             break
         }
 
@@ -308,7 +308,6 @@ export class PDFProcessor {
       
       compressedPdf.setCreator("PixoraTools PDF Compressor")
 
-      // FIXED: Enhanced save options for maximum compression
       const saveOptions: any = {
         useObjectStreams: true,
         addDefaultPage: false,

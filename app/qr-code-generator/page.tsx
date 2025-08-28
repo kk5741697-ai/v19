@@ -201,26 +201,17 @@ export default function QRCodeGeneratorPage() {
   }
   const downloadQR = async (format: string) => {
     try {
-      if (!qrDataUrl && format !== "svg") {
+      const qrContent = generateQRContent()
+      if (!qrContent.trim()) {
         toast({
-          title: "No QR code to download",
-          description: "Please generate a QR code first",
+          title: "No content to generate QR code",
+          description: "Please enter content first",
           variant: "destructive"
         })
         return
       }
 
       if (format === "svg") {
-        const qrContent = generateQRContent()
-        if (!qrContent.trim()) {
-          toast({
-            title: "No content to generate QR code",
-            description: "Please enter content first",
-            variant: "destructive"
-          })
-          return
-        }
-        
         const qrOptions = {
           width: qrSize[0],
           color: { dark: foregroundColor, light: backgroundColor },
@@ -235,6 +226,14 @@ export default function QRCodeGeneratorPage() {
         link.click()
         URL.revokeObjectURL(url)
       } else {
+        if (!qrDataUrl) {
+          toast({
+            title: "No QR code to download",
+            description: "Please generate a QR code first",
+            variant: "destructive"
+          })
+          return
+        }
         const link = document.createElement("a")
         link.download = `qr-code.${format}`
         link.href = qrDataUrl
@@ -917,8 +916,12 @@ export default function QRCodeGeneratorPage() {
                   <Button 
                     variant="outline" 
                     size="lg" 
-                    onClick={() => downloadQR("pdf")}
-                    disabled={!qrDataUrl}
+                    onClick={() => {
+                      toast({
+                        title: "Feature coming soon",
+                        description: "PDF export will be available in the next update",
+                      })
+                    }}
                     className="text-orange-500 border-orange-400 hover:bg-orange-50 font-semibold py-3 rounded-lg transition-all hover:scale-105"
                   >
                     .PDF*
@@ -926,8 +929,12 @@ export default function QRCodeGeneratorPage() {
                   <Button 
                     variant="outline" 
                     size="lg" 
-                    onClick={() => downloadQR("eps")}
-                    disabled={!qrDataUrl}
+                    onClick={() => {
+                      toast({
+                        title: "Feature coming soon", 
+                        description: "EPS export will be available in the next update",
+                      })
+                    }}
                     className="text-purple-500 border-purple-400 hover:bg-purple-50 font-semibold py-3 rounded-lg transition-all hover:scale-105"
                   >
                     .EPS*
@@ -935,7 +942,7 @@ export default function QRCodeGeneratorPage() {
                 </div>
 
                 <p className="text-xs text-gray-400 text-center italic">
-                  * no support for color gradients
+                  * Coming soon
                 </p>
                 
                 {/* QR Code Info */}
