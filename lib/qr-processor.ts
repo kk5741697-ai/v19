@@ -14,9 +14,13 @@ export interface QRCodeOptions {
   maskPattern?: number
   version?: number
   style?: {
-    shape?: string
-    corner?: string
-    dot?: string
+    bodyShape?: "square" | "rounded" | "dots" | "extra-rounded" | "classy" | "classy-rounded"
+    eyeFrameShape?: "square" | "rounded" | "extra-rounded" | "leaf" | "circle"
+    eyeBallShape?: "square" | "rounded" | "extra-rounded" | "leaf" | "circle"
+    gradientType?: "linear" | "radial" | "none"
+    gradientColors?: string[]
+    backgroundColor?: string
+    backgroundImage?: string
   }
   logo?: {
     src: string
@@ -24,6 +28,15 @@ export interface QRCodeOptions {
     height?: number
     x?: number
     y?: number
+    removeBackground?: boolean
+    borderRadius?: number
+    margin?: number
+  }
+  frame?: {
+    style?: "none" | "square" | "rounded" | "circle" | "banner"
+    color?: string
+    text?: string
+    textColor?: string
   }
 }
 
@@ -66,15 +79,265 @@ export class QRProcessor {
       // Generate base QR code
       const qrDataURL = await QRCode.toDataURL(text, qrOptions)
 
-      // Add logo if provided
-      if (options.logo?.src) {
-        return await this.addLogoToQR(qrDataURL, options.logo, options.width || 1000, options.style)
-      }
-
-      return qrDataURL
+      // Apply custom styling and enhancements
+      return await this.enhanceQRCode(qrDataURL, options)
     } catch (error) {
       console.error("QR generation failed:", error)
       throw new Error(`Failed to generate QR code: ${error instanceof Error ? error.message : "Unknown error"}`)
+    }
+  }
+
+  private static async enhanceQRCode(qrDataURL: string, options: QRCodeOptions): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement("canvas")
+      const ctx = canvas.getContext("2d")
+      if (!ctx) {
+        reject(new Error("Canvas not supported"))
+        return
+      }
+
+      const qrSize = options.width || 1000
+      canvas.width = qrSize
+      canvas.height = qrSize
+
+      const qrImage = new Image()
+      qrImage.onload = async () => {
+        try {
+          // Apply background styling
+          if (options.style?.backgroundColor) {
+            ctx.fillStyle = options.style.backgroundColor
+            ctx.fillRect(0, 0, qrSize, qrSize)
+          }
+
+          // Apply gradient background if specified
+          if (options.style?.gradientType && options.style?.gradientColors) {
+            const gradient = options.style.gradientType === "radial" 
+              ? ctx.createRadialGradient(qrSize/2, qrSize/2, 0, qrSize/2, qrSize/2, qrSize/2)
+              : ctx.createLinearGradient(0, 0, qrSize, qrSize)
+            
+            options.style.gradientColors.forEach((color, index) => {
+              gradient.addColorStop(index / (options.style!.gradientColors!.length - 1), color)
+            })
+            
+            ctx.fillStyle = gradient
+            ctx.fillRect(0, 0, qrSize, qrSize)
+          }
+
+          // Draw base QR code
+          ctx.drawImage(qrImage, 0, 0, qrSize, qrSize)
+
+          // Apply custom QR styling (simulate different shapes)
+          if (options.style?.bodyShape && options.style.bodyShape !== "square") {
+            await this.applyQRStyling(ctx, qrSize, options.style)
+          }
+
+          // Add logo if provided
+          if (options.logo?.src) {
+            await this.addEnhancedLogo(ctx, options.logo, qrSize)
+          }
+
+          // Add frame if specified
+          if (options.frame?.style && options.frame.style !== "none") {
+            this.addFrame(ctx, qrSize, options.frame)
+          }
+
+          resolve(canvas.toDataURL("image/png"))
+        } catch (error) {
+          console.error("QR enhancement failed:", error)
+          resolve(qrDataURL) // Return original on error
+        }
+      }
+      qrImage.onerror = () => resolve(qrDataURL)
+      qrImage.src = qrDataURL
+    })
+  }
+
+  private static async applyQRStyling(ctx: CanvasRenderingContext2D, size: number, style: any): Promise<void> {
+    // This would apply different QR code body shapes
+    // For now, we'll add a subtle overlay effect
+    const imageData = ctx.getImageData(0, 0, size, size)
+    const data = imageData.data
+    
+    // Apply styling based on bodyShape
+    switch (style.bodyShape) {
+      case "rounded":
+        // Add rounded corners effect
+        this.applyRoundedEffect(data, size)
+        break
+      case "dots":
+        // Convert squares to dots
+        this.applyDotsEffect(data, size)
+        break
+      case "extra-rounded":
+        // Extra rounded effect
+        this.applyExtraRoundedEffect(data, size)
+        break
+    }
+    
+    ctx.putImageData(imageData, 0, 0)
+  }
+
+  private static applyRoundedEffect(data: Uint8ClampedArray, size: number): void {
+    // Simulate rounded QR code modules
+    for (let y = 0; y < size; y += 10) {
+      for (let x = 0; x < size; x += 10) {
+        const index = (y * size + x) * 4
+        if (index < data.length && data[index + 3] > 128) {
+          // Add slight transparency to corners for rounded effect
+          const cornerIndices = [
+            ((y) * size + (x)) * 4,
+            ((y) * size + (x + 9)) * 4,
+            ((y + 9) * size + (x)) * 4,
+            ((y + 9) * size + (x + 9)) * 4
+          ]
+          cornerIndices.forEach(i => {
+            if (i < data.length) data[i + 3] *= 0.7
+          })
+        }
+      }
+    }
+  }
+
+  private static applyDotsEffect(data: Uint8ClampedArray, size: number): void {
+    // Convert square modules to circular dots
+    for (let y = 0; y < size; y += 10) {
+      for (let x = 0; x < size; x += 10) {
+        const centerX = x + 5
+        const centerY = y + 5
+        const radius = 4
+        
+        for (let dy = -radius; dy <= radius; dy++) {
+          for (let dx = -radius; dx <= radius; dx++) {
+            const distance = Math.sqrt(dx * dx + dy * dy)
+            const pixelX = centerX + dx
+            const pixelY = centerY + dy
+            
+            if (pixelX >= 0 && pixelX < size && pixelY >= 0 && pixelY < size) {
+              const index = (pixelY * size + pixelX) * 4
+              if (index < data.length) {
+                if (distance > radius) {
+                  data[index + 3] = 0 // Make transparent outside circle
+                } else if (distance > radius - 1) {
+                  data[index + 3] *= (radius - distance) // Smooth edge
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  private static applyExtraRoundedEffect(data: Uint8ClampedArray, size: number): void {
+    // Apply extra rounded corners with more aggressive rounding
+    for (let y = 0; y < size; y += 8) {
+      for (let x = 0; x < size; x += 8) {
+        const index = (y * size + x) * 4
+        if (index < data.length && data[index + 3] > 128) {
+          // More aggressive corner rounding
+          const cornerIndices = [
+            ((y) * size + (x)) * 4,
+            ((y) * size + (x + 7)) * 4,
+            ((y + 7) * size + (x)) * 4,
+            ((y + 7) * size + (x + 7)) * 4
+          ]
+          cornerIndices.forEach(i => {
+            if (i < data.length) data[i + 3] *= 0.3
+          })
+        }
+      }
+    }
+  }
+
+  private static async addEnhancedLogo(ctx: CanvasRenderingContext2D, logo: NonNullable<QRCodeOptions["logo"]>, qrSize: number): Promise<void> {
+    return new Promise((resolve) => {
+      const logoImage = new Image()
+      logoImage.crossOrigin = "anonymous"
+      logoImage.onload = () => {
+        try {
+          const logoSize = logo.width || qrSize * 0.2
+          const margin = logo.margin || 8
+          const borderRadius = logo.borderRadius || 12
+          const logoX = logo.x !== undefined ? logo.x : (qrSize - logoSize) / 2
+          const logoY = logo.y !== undefined ? logo.y : (qrSize - logoSize) / 2
+
+          // Enhanced logo background with better styling
+          ctx.fillStyle = "#FFFFFF"
+          ctx.shadowColor = "rgba(0, 0, 0, 0.15)"
+          ctx.shadowBlur = 8
+          ctx.shadowOffsetX = 0
+          ctx.shadowOffsetY = 4
+          
+          ctx.beginPath()
+          ctx.roundRect(
+            logoX - margin, 
+            logoY - margin, 
+            logoSize + margin * 2, 
+            logoSize + margin * 2, 
+            borderRadius
+          )
+          ctx.fill()
+          
+          // Reset shadow
+          ctx.shadowColor = "transparent"
+          ctx.shadowBlur = 0
+          ctx.shadowOffsetX = 0
+          ctx.shadowOffsetY = 0
+
+          // Draw logo with enhanced styling
+          ctx.save()
+          ctx.beginPath()
+          ctx.roundRect(logoX, logoY, logoSize, logoSize, borderRadius / 2)
+          ctx.clip()
+          ctx.drawImage(logoImage, logoX, logoY, logoSize, logoSize)
+          ctx.restore()
+
+          resolve()
+        } catch (error) {
+          console.error("Logo processing failed:", error)
+          resolve() // Continue without logo
+        }
+      }
+      logoImage.onerror = () => resolve()
+      logoImage.src = logo.src
+    })
+  }
+
+  private static addFrame(ctx: CanvasRenderingContext2D, size: number, frame: any): void {
+    const frameWidth = 60
+    const frameColor = frame.color || "#000000"
+    const textColor = frame.textColor || "#FFFFFF"
+    
+    ctx.fillStyle = frameColor
+    
+    switch (frame.style) {
+      case "square":
+        ctx.fillRect(0, 0, size, frameWidth)
+        ctx.fillRect(0, size - frameWidth, size, frameWidth)
+        break
+      case "rounded":
+        ctx.beginPath()
+        ctx.roundRect(0, 0, size, frameWidth, 15)
+        ctx.roundRect(0, size - frameWidth, size, frameWidth, 15)
+        ctx.fill()
+        break
+      case "banner":
+        ctx.fillRect(0, size - frameWidth, size, frameWidth)
+        break
+    }
+    
+    // Add frame text if provided
+    if (frame.text) {
+      ctx.fillStyle = textColor
+      ctx.font = "bold 24px Arial"
+      ctx.textAlign = "center"
+      ctx.textBaseline = "middle"
+      
+      if (frame.style === "banner") {
+        ctx.fillText(frame.text, size / 2, size - frameWidth / 2)
+      } else {
+        ctx.fillText(frame.text, size / 2, frameWidth / 2)
+      }
     }
   }
 
@@ -101,82 +364,6 @@ export class QRProcessor {
       console.error("QR SVG generation failed:", error)
       throw new Error(`Failed to generate QR SVG: ${error instanceof Error ? error.message : "Unknown error"}`)
     }
-  }
-
-  private static async addLogoToQR(
-    qrDataURL: string,
-    logo: NonNullable<QRCodeOptions["logo"]>,
-    qrSize: number,
-    style?: QRCodeOptions["style"]
-  ): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const canvas = document.createElement("canvas")
-      const ctx = canvas.getContext("2d")
-      if (!ctx) {
-        reject(new Error("Canvas not supported"))
-        return
-      }
-
-      canvas.width = qrSize
-      canvas.height = qrSize
-
-      const qrImage = new Image()
-      qrImage.onload = () => {
-        // Draw QR code
-        ctx.drawImage(qrImage, 0, 0, qrSize, qrSize)
-
-        const logoImage = new Image()
-        logoImage.crossOrigin = "anonymous"
-        logoImage.onload = () => {
-          try {
-            // Calculate logo size and position
-            const logoSize = logo.width || qrSize * 0.15
-            const logoX = logo.x !== undefined ? logo.x : (qrSize - logoSize) / 2
-            const logoY = logo.y !== undefined ? logo.y : (qrSize - logoSize) / 2
-
-            // Enhanced logo background with better styling
-            const padding = 8
-            const borderRadius = style?.corner === "rounded" ? 12 : 8
-            
-            ctx.fillStyle = "#FFFFFF"
-            ctx.shadowColor = "rgba(0, 0, 0, 0.1)"
-            ctx.shadowBlur = 4
-            ctx.shadowOffsetX = 0
-            ctx.shadowOffsetY = 2
-            
-            ctx.beginPath()
-            ctx.roundRect(logoX - padding, logoY - padding, logoSize + padding * 2, logoSize + padding * 2, borderRadius)
-            ctx.fill()
-            
-            // Reset shadow
-            ctx.shadowColor = "transparent"
-            ctx.shadowBlur = 0
-            ctx.shadowOffsetX = 0
-            ctx.shadowOffsetY = 0
-
-            // Draw logo with rounded corners if specified
-            ctx.save()
-            ctx.beginPath()
-            ctx.roundRect(logoX, logoY, logoSize, logoSize, borderRadius / 2)
-            ctx.clip()
-            ctx.drawImage(logoImage, logoX, logoY, logoSize, logoSize)
-            ctx.restore()
-
-            resolve(canvas.toDataURL("image/png"))
-          } catch (error) {
-            console.error("Logo processing failed:", error)
-            resolve(qrDataURL) // Return original QR without logo
-          }
-        }
-        logoImage.onerror = () => {
-          console.warn("Failed to load logo, returning QR without logo")
-          resolve(qrDataURL)
-        }
-        logoImage.src = logo.src
-      }
-      qrImage.onerror = () => reject(new Error("Failed to load QR code"))
-      qrImage.src = qrDataURL
-    })
   }
 
   static async scanQRCode(imageFile: File): Promise<QRScanResult> {

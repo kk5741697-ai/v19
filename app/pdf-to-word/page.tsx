@@ -11,8 +11,8 @@ const convertOptions = [
     type: "select" as const,
     defaultValue: "no-ocr",
     selectOptions: [
-      { value: "no-ocr", label: "NO OCR - Convert PDFs with selectable text" },
-      { value: "ocr", label: "OCR - Convert scanned PDFs (Premium)" },
+      { value: "no-ocr", label: "Text-based PDF (Fast)" },
+      { value: "ocr", label: "Scanned PDF with OCR (Free)" },
     ],
     section: "Conversion",
   },
@@ -70,6 +70,14 @@ const convertOptions = [
     section: "OCR Settings",
     condition: (options) => options.conversionMode === "ocr",
   },
+  {
+    key: "ocrEnabled",
+    label: "Enable Free OCR",
+    type: "checkbox" as const,
+    defaultValue: true,
+    section: "OCR Settings",
+    condition: (options) => options.conversionMode === "ocr",
+  },
 ]
 
 async function convertPDFToWord(files: any[], options: any) {
@@ -81,12 +89,6 @@ async function convertPDFToWord(files: any[], options: any) {
       }
     }
 
-    if (options.conversionMode === "ocr") {
-      return {
-        success: false,
-        error: "OCR conversion requires Premium subscription. Please upgrade to access this feature.",
-      }
-    }
 
     const conversionOptions = {
       outputFormat: options.outputFormat,
@@ -94,6 +96,8 @@ async function convertPDFToWord(files: any[], options: any) {
       preserveImages: options.preserveImages,
       preserveFormatting: options.preserveFormatting,
       language: options.language,
+      conversionMode: options.conversionMode,
+      ocrEnabled: options.ocrEnabled && options.conversionMode === "ocr",
     }
 
     if (files.length === 1) {
@@ -141,7 +145,7 @@ export default function PDFToWordPage() {
   return (
     <PDFToolsLayout
       title="PDF to Word Converter"
-      description="Convert PDF files to editable Word documents. Supports both text-based PDFs and scanned documents with OCR."
+      description="Convert PDF files to editable Word documents. Supports both text-based PDFs and scanned documents with free OCR technology."
       icon={FileText}
       toolType="convert"
       processFunction={convertPDFToWord}

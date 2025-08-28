@@ -1,88 +1,34 @@
 "use client"
 
-import { useState, useRef, useCallback, useEffect, useMemo } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
+import { Header } from "@/components/header"
+import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Slider } from "@/components/ui/slider"
-import { Progress } from "@/components/ui/progress"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Slider } from "@/components/ui/slider"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Separator } from "@/components/ui/separator"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
-  Upload, 
-  Download, 
-  Trash2, 
-  X,
-  ArrowLeft,
-  CheckCircle,
-  RefreshCw,
-  ZoomIn,
-  ZoomOut,
-  Move,
-  Maximize2,
-  AlertCircle,
-  Info,
-  RotateCw,
-  FlipHorizontal,
-  FlipVertical,
-  Square,
-  Circle,
-  MousePointer,
-  Grid,
-  Eye,
-  EyeOff,
-  Undo,
-  Redo,
-  Save,
-  Settings,
-  Layers,
-  History,
-  Menu,
-  Smartphone,
-  Monitor
+  Upload, Download, Settings, Eye, Trash2, RotateCcw, 
+  CheckCircle, AlertCircle, ImageIcon, ArrowLeft, Grid, List,
+  ZoomIn, ZoomOut, Move, RotateCw, Copy, Crop, Square,
+  Circle, MousePointer, Hand, X, Plus, Minus, Maximize,
+  FlipHorizontal, FlipVertical, Palette, Contrast
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
+import { useIsMobile } from "@/hooks/use-mobile"
 import Link from "next/link"
-
-interface ImageFile {
-  id: string
-  file: File
-  originalFile?: File
-  name: string
-  size: number
-  preview: string
-  dimensions: { width: number; height: number }
-  processed?: boolean
-  processedPreview?: string
-  processedSize?: number
-  blob?: Blob
-  cropArea?: { x: number; y: number; width: number; height: number }
-  history?: Array<{ action: string; timestamp: number; data: any }>
-  layers?: Array<{ id: string; name: string; visible: boolean; opacity: number }>
-}
-
-interface CropHandle {
-  type: "corner" | "edge" | "move"
-  position: string
-  cursor: string
-}
-
-interface HistoryState {
-  action: string
-  timestamp: number
-  files: ImageFile[]
-  cropSelection: any
-}
 
 interface ToolOption {
   key: string
   label: string
-  type: "select" | "slider" | "input" | "checkbox" | "color" | "text"
+  type: "text" | "number" | "select" | "checkbox" | "slider" | "color" | "input"
   defaultValue: any
   min?: number
   max?: number
@@ -92,13 +38,37 @@ interface ToolOption {
   condition?: (options: any) => boolean
 }
 
-interface EnhancedImageToolsLayoutProps {
+interface CropArea {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+interface ImageFile {
+  id: string
+  file: File
+  originalFile: File
+  name: string
+  size: number
+  type: string
+  status: string
+  preview: string
+  dimensions: { width: number; height: number }
+  processed?: boolean
+  processedPreview?: string
+  processedSize?: number
+  blob?: Blob
+  cropArea?: CropArea
+}
+
+interface ImageToolsLayoutProps {
   title: string
   description: string
   icon: any
-  toolType: "resize" | "compress" | "convert" | "crop" | "rotate" | "watermark" | "background" | "filters"
-  processFunction: (files: ImageFile[], options: any) => Promise<{ success: boolean; processedFiles?: ImageFile[]; error?: string }>
-  options: ToolOption[]
+  toolType: "resize" | "compress" | "convert" | "crop" | "rotate" | "filters" | "watermark" | "background"
+  processFunction: (files: any[], options: any) => Promise<{ success: boolean; processedFiles?: any[]; error?: string }>
+  options?: ToolOption[]
   maxFiles?: number
   singleFileOnly?: boolean
   allowBatchProcessing?: boolean
@@ -107,69 +77,39 @@ interface EnhancedImageToolsLayoutProps {
   presets?: Array<{ name: string; values: any }>
 }
 
-const cropHandles: CropHandle[] = [
-  { type: "corner", position: "nw", cursor: "nw-resize" },
-  { type: "corner", position: "ne", cursor: "ne-resize" },
-  { type: "corner", position: "sw", cursor: "sw-resize" },
-  { type: "corner", position: "se", cursor: "se-resize" },
-  { type: "edge", position: "n", cursor: "n-resize" },
-  { type: "edge", position: "s", cursor: "s-resize" },
-  { type: "edge", position: "w", cursor: "w-resize" },
-  { type: "edge", position: "e", cursor: "e-resize" },
-  { type: "move", position: "center", cursor: "move" }
-]
-
 export function ImageToolsLayout({
   title,
   description,
   icon: Icon,
   toolType,
   processFunction,
-  options,
+  options = [],
   maxFiles = 20,
   singleFileOnly = false,
   allowBatchProcessing = true,
-  supportedFormats = ["image/jpeg", "image/png", "image/webp", "image/gif"],
+  supportedFormats = ["image/jpeg", "image/png", "image/webp"],
   outputFormats = ["jpeg", "png", "webp"],
   presets = []
-}: EnhancedImageToolsLayoutProps) {
+}: ImageToolsLayoutProps) {
   const [files, setFiles] = useState<ImageFile[]>([])
-  const [toolOptions, setToolOptions] = useState<Record<string, any>>({})
   const [isProcessing, setIsProcessing] = useState(false)
-  const [processedFiles, setProcessedFiles] = useState<ImageFile[]>([])
-  const [selectedFile, setSelectedFile] = useState<string | null>(null)
-  const [cropSelection, setCropSelection] = useState<{ x: number; y: number; width: number; height: number } | null>(null)
-  const [isDragging, setIsDragging] = useState(false)
-  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null)
-  const [activeHandle, setActiveHandle] = useState<string | null>(null)
+  const [progress, setProgress] = useState(0)
+  const [toolOptions, setToolOptions] = useState<Record<string, any>>({})
+  const [selectedFile, setSelectedFile] = useState<ImageFile | null>(null)
+  const [cropMode, setCropMode] = useState(false)
+  const [cropArea, setCropArea] = useState<CropArea>({ x: 10, y: 10, width: 80, height: 80 })
+  const [isDragActive, setIsDragActive] = useState(false)
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [zoomLevel, setZoomLevel] = useState(100)
-  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 })
-  const [isPanning, setIsPanning] = useState(false)
-  const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 })
-  const [showGrid, setShowGrid] = useState(false)
-  const [snapToGrid, setSnapToGrid] = useState(false)
-  const [history, setHistory] = useState<HistoryState[]>([])
-  const [historyIndex, setHistoryIndex] = useState(-1)
-  const [isMobile, setIsMobile] = useState(false)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [activeTab, setActiveTab] = useState("options")
+  const [canvasMode, setCanvasMode] = useState<"select" | "crop" | "move">("select")
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const isMobile = useIsMobile()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const imageRef = useRef<HTMLImageElement>(null)
-  const canvasRef = useRef<HTMLDivElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const cropOverlayRef = useRef<HTMLDivElement>(null)
 
-  // Detect mobile and handle responsive behavior
-  useEffect(() => {
-    const checkMobile = () => {
-      const mobile = window.innerWidth < 768
-      setIsMobile(mobile)
-      if (mobile) setSidebarCollapsed(true)
-    }
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
-  }, [])
-
-  // Initialize options with defaults
+  // Initialize options
   useEffect(() => {
     const defaultOptions: Record<string, any> = {}
     options.forEach(option => {
@@ -178,148 +118,58 @@ export function ImageToolsLayout({
     setToolOptions(defaultOptions)
   }, [options])
 
-  // Save state to history
-  const saveToHistory = useCallback((action: string) => {
-    const newHistoryItem: HistoryState = {
-      action,
-      timestamp: Date.now(),
-      files: JSON.parse(JSON.stringify(files)),
-      cropSelection: JSON.parse(JSON.stringify(cropSelection))
-    }
-    
-    setHistory(prev => {
-      const newHistory = prev.slice(0, historyIndex + 1)
-      newHistory.push(newHistoryItem)
-      return newHistory.slice(-50) // Keep last 50 actions
-    })
-    setHistoryIndex(prev => prev + 1)
-  }, [files, cropSelection, historyIndex])
+  const handleFileUpload = async (uploadedFiles: FileList) => {
+    const validFiles: ImageFile[] = []
 
-  // Undo/Redo functionality
-  const undo = useCallback(() => {
-    if (historyIndex > 0) {
-      const prevState = history[historyIndex - 1]
-      setFiles(prevState.files)
-      setCropSelection(prevState.cropSelection)
-      setHistoryIndex(prev => prev - 1)
-      toast({ title: "Undone", description: prevState.action })
-    }
-  }, [history, historyIndex])
-
-  const redo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      const nextState = history[historyIndex + 1]
-      setFiles(nextState.files)
-      setCropSelection(nextState.cropSelection)
-      setHistoryIndex(prev => prev + 1)
-      toast({ title: "Redone", description: nextState.action })
-    }
-  }, [history, historyIndex])
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        switch (e.key) {
-          case 'z':
-            e.preventDefault()
-            if (e.shiftKey) {
-              redo()
-            } else {
-              undo()
-            }
-            break
-          case 'g':
-            e.preventDefault()
-            setShowGrid(!showGrid)
-            break
-          case 's':
-            e.preventDefault()
-            handleProcess()
-            break
-        }
+    for (const file of Array.from(uploadedFiles)) {
+      if (!supportedFormats.includes(file.type)) {
+        toast({
+          title: "Unsupported format",
+          description: `${file.name} is not a supported image format`,
+          variant: "destructive"
+        })
+        continue
       }
-    }
 
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [undo, redo, showGrid])
-
-  const handleFileUpload = async (uploadedFiles: FileList | null) => {
-    if (!uploadedFiles) return
-
-    // Validate file types first
-    const invalidFiles = Array.from(uploadedFiles).filter(file => 
-      !supportedFormats.includes(file.type)
-    )
-    
-    if (invalidFiles.length > 0) {
-      toast({
-        title: "Invalid file types",
-        description: `${invalidFiles.length} files are not supported. Please upload ${supportedFormats.map(f => f.split('/')[1].toUpperCase()).join(', ')} files only.`,
-        variant: "destructive"
-      })
-      return
-    }
-
-    if (singleFileOnly && files.length > 0) {
-      setFiles([])
-      setProcessedFiles([])
-    }
-
-    const newFiles: ImageFile[] = []
-    const maxFilesToProcess = singleFileOnly ? 1 : Math.min(uploadedFiles.length, maxFiles)
-    
-    for (let i = 0; i < maxFilesToProcess; i++) {
-      const file = uploadedFiles[i]
-      if (!supportedFormats.includes(file.type)) continue
+      if (file.size > 100 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: `${file.name} exceeds 100MB limit`,
+          variant: "destructive"
+        })
+        continue
+      }
 
       try {
         const preview = await createImagePreview(file)
         const dimensions = await getImageDimensions(file)
         
         const imageFile: ImageFile = {
-          id: `${file.name}-${Date.now()}-${i}`,
+          id: `${file.name}-${Date.now()}-${Math.random()}`,
           file,
           originalFile: file,
           name: file.name,
           size: file.size,
+          type: file.type,
+          status: "ready",
           preview,
           dimensions,
-          history: [],
-          layers: [{ id: 'base', name: 'Background', visible: true, opacity: 100 }]
+          cropArea: { x: 10, y: 10, width: 80, height: 80 }
         }
 
-        newFiles.push(imageFile)
+        validFiles.push(imageFile)
       } catch (error) {
-        toast({
-          title: "Error loading image",
-          description: `Failed to load ${file.name}`,
-          variant: "destructive"
-        })
+        console.error(`Failed to process ${file.name}:`, error)
       }
     }
 
-    if (newFiles.length === 0) {
-      toast({
-        title: "No valid images",
-        description: "No valid image files were found to upload.",
-        variant: "destructive"
-      })
-      return
-    }
-
-    const updatedFiles = singleFileOnly ? newFiles : [...files, ...newFiles]
-    setFiles(updatedFiles)
-    
-    if (newFiles.length > 0) {
-      setSelectedFile(newFiles[0].id)
-      saveToHistory("Upload images")
-      
-      toast({
-        title: "Images uploaded",
-        description: `${newFiles.length} image${newFiles.length > 1 ? 's' : ''} uploaded successfully`
-      })
+    if (singleFileOnly) {
+      setFiles(validFiles.slice(0, 1))
+      if (validFiles.length > 0) {
+        setSelectedFile(validFiles[0])
+      }
+    } else {
+      setFiles(prev => [...prev, ...validFiles].slice(0, maxFiles))
     }
   }
 
@@ -341,266 +191,58 @@ export function ImageToolsLayout({
     })
   }
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    handleFileUpload(e.dataTransfer.files)
-  }, [])
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-  }, [])
-
   const removeFile = (fileId: string) => {
     setFiles(prev => prev.filter(f => f.id !== fileId))
-    setProcessedFiles(prev => prev.filter(f => f.id !== fileId))
-    if (selectedFile === fileId) {
-      const remainingFiles = files.filter(f => f.id !== fileId)
-      setSelectedFile(remainingFiles.length > 0 ? remainingFiles[0].id : null)
-    }
-    saveToHistory("Remove file")
-  }
-
-  const resetTool = () => {
-    setFiles([])
-    setProcessedFiles([])
-    setSelectedFile(null)
-    setCropSelection(null)
-    setZoomLevel(100)
-    setPanOffset({ x: 0, y: 0 })
-    setHistory([])
-    setHistoryIndex(-1)
-    
-    const defaultOptions: Record<string, any> = {}
-    options.forEach(option => {
-      defaultOptions[option.key] = option.defaultValue
-    })
-    setToolOptions(defaultOptions)
-    
-    toast({
-      title: "Tool reset",
-      description: "All files and settings have been reset"
-    })
-  }
-
-  // Enhanced crop functionality with transform controls
-  const handleCropStart = (e: React.MouseEvent<HTMLImageElement>) => {
-    if (toolType !== "crop") return
-    
-    e.preventDefault()
-    e.stopPropagation()
-    
-    const img = e.currentTarget
-    const rect = img.getBoundingClientRect()
-    
-    const x = ((e.clientX - rect.left) / rect.width) * 100
-    const y = ((e.clientY - rect.top) / rect.height) * 100
-    
-    const boundedX = Math.max(0, Math.min(95, x))
-    const boundedY = Math.max(0, Math.min(95, y))
-    
-    setDragStart({ x: boundedX, y: boundedY })
-    setIsDragging(true)
-    setCropSelection({ x: boundedX, y: boundedY, width: 0, height: 0 })
-  }
-
-  const handleCropMove = (e: React.MouseEvent<HTMLImageElement>) => {
-    if (toolType !== "crop" || !isDragging || !dragStart) return
-    
-    e.preventDefault()
-    
-    const img = e.currentTarget
-    const rect = img.getBoundingClientRect()
-    const x = ((e.clientX - rect.left) / rect.width) * 100
-    const y = ((e.clientY - rect.top) / rect.height) * 100
-    
-    const boundedX = Math.max(0, Math.min(100, x))
-    const boundedY = Math.max(0, Math.min(100, y))
-    
-    let newSelection = {
-      x: Math.min(dragStart.x, boundedX),
-      y: Math.min(dragStart.y, boundedY),
-      width: Math.abs(boundedX - dragStart.x),
-      height: Math.abs(boundedY - dragStart.y)
-    }
-    
-    // Apply aspect ratio constraint
-    if (toolOptions.aspectRatio && toolOptions.aspectRatio !== "free") {
-      const [ratioW, ratioH] = toolOptions.aspectRatio.split(':').map(Number)
-      if (ratioW && ratioH) {
-        const targetRatio = ratioW / ratioH
-        
-        if (newSelection.width / newSelection.height > targetRatio) {
-          newSelection.width = newSelection.height * targetRatio
-        } else {
-          newSelection.height = newSelection.width / targetRatio
-        }
-        
-        if (newSelection.x + newSelection.width > 100) {
-          newSelection.width = 100 - newSelection.x
-          newSelection.height = newSelection.width / targetRatio
-        }
-        if (newSelection.y + newSelection.height > 100) {
-          newSelection.height = 100 - newSelection.y
-          newSelection.width = newSelection.height * targetRatio
-        }
-      }
-    }
-    
-    // Snap to grid if enabled
-    if (snapToGrid) {
-      const gridSize = 5
-      newSelection.x = Math.round(newSelection.x / gridSize) * gridSize
-      newSelection.y = Math.round(newSelection.y / gridSize) * gridSize
-      newSelection.width = Math.round(newSelection.width / gridSize) * gridSize
-      newSelection.height = Math.round(newSelection.height / gridSize) * gridSize
-    }
-    
-    setCropSelection(newSelection)
-  }
-
-  const handleCropEnd = (e: React.MouseEvent) => {
-    if (toolType !== "crop") return
-    
-    e.preventDefault()
-    setIsDragging(false)
-    setDragStart(null)
-    setActiveHandle(null)
-    
-    if (cropSelection && selectedFile) {
-      const updatedFiles = files.map(file => 
-        file.id === selectedFile 
-          ? { ...file, cropArea: cropSelection }
-          : file
-      )
-      setFiles(updatedFiles)
-      saveToHistory("Adjust crop area")
+    if (selectedFile?.id === fileId) {
+      setSelectedFile(null)
     }
   }
 
-  // Handle crop handle interactions
-  const handleCropHandleStart = (e: React.MouseEvent, handleType: string) => {
-    if (toolType !== "crop" || !cropSelection) return
-    
-    e.preventDefault()
-    e.stopPropagation()
-    
-    setActiveHandle(handleType)
-    setIsDragging(true)
-    
-    const img = imageRef.current
-    if (!img) return
-    
-    const rect = img.getBoundingClientRect()
-    const x = ((e.clientX - rect.left) / rect.width) * 100
-    const y = ((e.clientY - rect.top) / rect.height) * 100
-    
-    setDragStart({ x, y })
-  }
-
-  const handleCropHandleMove = (e: React.MouseEvent) => {
-    if (toolType !== "crop" || !isDragging || !activeHandle || !cropSelection || !dragStart) return
-    
-    e.preventDefault()
-    
-    const img = imageRef.current
-    if (!img) return
-    
-    const rect = img.getBoundingClientRect()
-    const x = ((e.clientX - rect.left) / rect.width) * 100
-    const y = ((e.clientY - rect.top) / rect.height) * 100
-    
-    const deltaX = x - dragStart.x
-    const deltaY = y - dragStart.y
-    
-    let newSelection = { ...cropSelection }
-    
-    switch (activeHandle) {
-      case "nw":
-        newSelection.x += deltaX
-        newSelection.y += deltaY
-        newSelection.width -= deltaX
-        newSelection.height -= deltaY
-        break
-      case "ne":
-        newSelection.y += deltaY
-        newSelection.width += deltaX
-        newSelection.height -= deltaY
-        break
-      case "sw":
-        newSelection.x += deltaX
-        newSelection.width -= deltaX
-        newSelection.height += deltaY
-        break
-      case "se":
-        newSelection.width += deltaX
-        newSelection.height += deltaY
-        break
-      case "n":
-        newSelection.y += deltaY
-        newSelection.height -= deltaY
-        break
-      case "s":
-        newSelection.height += deltaY
-        break
-      case "w":
-        newSelection.x += deltaX
-        newSelection.width -= deltaX
-        break
-      case "e":
-        newSelection.width += deltaX
-        break
-      case "center":
-        newSelection.x += deltaX
-        newSelection.y += deltaY
-        break
+  const updateCropArea = useCallback((newCropArea: Partial<CropArea>) => {
+    setCropArea(prev => ({ ...prev, ...newCropArea }))
+    if (selectedFile) {
+      setFiles(prev => prev.map(f => 
+        f.id === selectedFile.id 
+          ? { ...f, cropArea: { ...f.cropArea, ...newCropArea } }
+          : f
+      ))
     }
-    
-    // Ensure bounds
-    newSelection.x = Math.max(0, Math.min(100 - newSelection.width, newSelection.x))
-    newSelection.y = Math.max(0, Math.min(100 - newSelection.height, newSelection.y))
-    newSelection.width = Math.max(5, Math.min(100 - newSelection.x, newSelection.width))
-    newSelection.height = Math.max(5, Math.min(100 - newSelection.y, newSelection.height))
-    
-    setCropSelection(newSelection)
-    setDragStart({ x, y })
-  }
+  }, [selectedFile])
 
-  // Touch gesture support for mobile
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (!isMobile) return
-    
-    if (e.touches.length === 2) {
-      // Pinch to zoom
-      const touch1 = e.touches[0]
-      const touch2 = e.touches[1]
-      const distance = Math.sqrt(
-        Math.pow(touch2.clientX - touch1.clientX, 2) + 
-        Math.pow(touch2.clientY - touch1.clientY, 2)
-      )
-      setLastPanPoint({ x: distance, y: 0 })
+  const handleCanvasMouseDown = (e: React.MouseEvent) => {
+    if (canvasMode === "crop" && selectedFile) {
+      setIsDragging(true)
+      const rect = e.currentTarget.getBoundingClientRect()
+      setDragStart({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      })
     }
   }
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isMobile) return
-    
-    if (e.touches.length === 2) {
-      // Handle pinch zoom
-      const touch1 = e.touches[0]
-      const touch2 = e.touches[1]
-      const distance = Math.sqrt(
-        Math.pow(touch2.clientX - touch1.clientX, 2) + 
-        Math.pow(touch2.clientY - touch1.clientY, 2)
-      )
+  const handleCanvasMouseMove = (e: React.MouseEvent) => {
+    if (isDragging && canvasMode === "crop" && selectedFile) {
+      const rect = e.currentTarget.getBoundingClientRect()
+      const currentX = e.clientX - rect.left
+      const currentY = e.clientY - rect.top
       
-      const scale = distance / lastPanPoint.x
-      const newZoom = Math.max(25, Math.min(400, zoomLevel * scale))
-      setZoomLevel(newZoom)
-      setLastPanPoint({ x: distance, y: 0 })
+      const deltaX = ((currentX - dragStart.x) / rect.width) * 100
+      const deltaY = ((currentY - dragStart.y) / rect.height) * 100
+      
+      updateCropArea({
+        x: Math.max(0, Math.min(90, cropArea.x + deltaX)),
+        y: Math.max(0, Math.min(90, cropArea.y + deltaY))
+      })
+      
+      setDragStart({ x: currentX, y: currentY })
     }
   }
 
-  const handleProcess = async () => {
+  const handleCanvasMouseUp = () => {
+    setIsDragging(false)
+  }
+
+  const processFiles = async () => {
     if (files.length === 0) {
       toast({
         title: "No files selected",
@@ -610,38 +252,59 @@ export function ImageToolsLayout({
       return
     }
 
-    const invalidFiles = files.filter(file => 
-      !supportedFormats.includes(file.file.type)
-    )
-    
-    if (invalidFiles.length > 0) {
-      toast({
-        title: "Unsupported file formats",
-        description: `${invalidFiles.length} files are not supported. Please use ${supportedFormats.map(f => f.split('/')[1].toUpperCase()).join(', ')} formats only.`,
-        variant: "destructive"
-      })
-      return
-    }
-
     setIsProcessing(true)
-    setProcessedFiles([])
+    setProgress(0)
 
     try {
+      const progressInterval = setInterval(() => {
+        setProgress(prev => Math.min(prev + 10, 90))
+      }, 200)
+
       const result = await processFunction(files, toolOptions)
-      
+
+      clearInterval(progressInterval)
+      setProgress(100)
+
       if (result.success && result.processedFiles) {
-        setProcessedFiles(result.processedFiles)
-        saveToHistory("Process images")
+        setFiles(result.processedFiles)
+        
+        if (result.processedFiles.length === 1) {
+          // Single file - auto download
+          const file = result.processedFiles[0]
+          if (file.blob) {
+            const url = URL.createObjectURL(file.blob)
+            const link = document.createElement("a")
+            link.href = url
+            link.download = file.name
+            link.click()
+            URL.revokeObjectURL(url)
+          }
+        } else {
+          // Multiple files - create ZIP
+          const JSZip = (await import("jszip")).default
+          const zip = new JSZip()
+          
+          result.processedFiles.forEach(file => {
+            if (file.blob) {
+              zip.file(file.name, file.blob)
+            }
+          })
+          
+          const zipBlob = await zip.generateAsync({ type: "blob" })
+          const url = URL.createObjectURL(zipBlob)
+          const link = document.createElement("a")
+          link.href = url
+          link.download = `${toolType}_images.zip`
+          link.click()
+          URL.revokeObjectURL(url)
+        }
+
         toast({
           title: "Processing complete",
-          description: `${result.processedFiles.length} images processed successfully`
+          description: "Your images have been processed and downloaded"
         })
       } else {
-        toast({
-          title: "Processing failed",
-          description: result.error || "An error occurred",
-          variant: "destructive"
-        })
+        throw new Error(result.error || "Processing failed")
       }
     } catch (error) {
       toast({
@@ -651,60 +314,16 @@ export function ImageToolsLayout({
       })
     } finally {
       setIsProcessing(false)
+      setTimeout(() => setProgress(0), 2000)
     }
   }
 
-  const handleDownload = async () => {
-    if (processedFiles.length === 1) {
-      const file = processedFiles[0]
-      if (file.blob) {
-        const url = URL.createObjectURL(file.blob)
-        const link = document.createElement("a")
-        link.href = url
-        link.download = file.name
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-        URL.revokeObjectURL(url)
-        
-        toast({
-          title: "Download started",
-          description: `${file.name} downloaded successfully`
-        })
-      }
-    } else if (processedFiles.length > 1) {
-      try {
-        const JSZip = (await import("jszip")).default
-        const zip = new JSZip()
-        
-        processedFiles.forEach(file => {
-          if (file.blob) {
-            zip.file(file.name, file.blob)
-          }
-        })
-
-        const zipBlob = await zip.generateAsync({ type: "blob" })
-        const url = URL.createObjectURL(zipBlob)
-        const link = document.createElement("a")
-        link.href = url
-        link.download = `${toolType}_images.zip`
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-        URL.revokeObjectURL(url)
-        
-        toast({
-          title: "Download started",
-          description: `ZIP file with ${processedFiles.length} images downloaded`
-        })
-      } catch (error) {
-        toast({
-          title: "Download failed",
-          description: "Failed to create ZIP file",
-          variant: "destructive"
-        })
-      }
-    }
+  const applyPreset = (preset: any) => {
+    setToolOptions(prev => ({ ...prev, ...preset.values }))
+    toast({
+      title: "Preset applied",
+      description: `${preset.name} settings applied`
+    })
   }
 
   const formatFileSize = (bytes: number) => {
@@ -715,758 +334,613 @@ export function ImageToolsLayout({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i]
   }
 
-  const currentFile = selectedFile ? files.find(f => f.id === selectedFile) : files[0]
+  const renderOptionControl = (option: ToolOption) => {
+    if (option.condition && !option.condition(toolOptions)) {
+      return null
+    }
 
-  const groupedOptions = options.reduce((acc, option) => {
+    switch (option.type) {
+      case "select":
+        return (
+          <Select
+            value={toolOptions[option.key]?.toString()}
+            onValueChange={(value) => setToolOptions(prev => ({ ...prev, [option.key]: value }))}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {option.selectOptions?.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )
+
+      case "checkbox":
+        return (
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              checked={toolOptions[option.key] || false}
+              onCheckedChange={(checked) => setToolOptions(prev => ({ ...prev, [option.key]: checked }))}
+            />
+            <Label className="text-sm">{option.label}</Label>
+          </div>
+        )
+
+      case "slider":
+        return (
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <Label className="text-sm">{option.label}</Label>
+              <span className="text-sm text-muted-foreground">
+                {toolOptions[option.key] || option.defaultValue}
+              </span>
+            </div>
+            <Slider
+              value={[toolOptions[option.key] || option.defaultValue]}
+              onValueChange={([value]) => setToolOptions(prev => ({ ...prev, [option.key]: value }))}
+              min={option.min}
+              max={option.max}
+              step={option.step}
+            />
+          </div>
+        )
+
+      case "input":
+      case "text":
+        return (
+          <Input
+            type={option.type === "input" ? "number" : "text"}
+            value={toolOptions[option.key] || ""}
+            onChange={(e) => setToolOptions(prev => ({ 
+              ...prev, 
+              [option.key]: option.type === "input" ? Number(e.target.value) : e.target.value 
+            }))}
+            min={option.min}
+            max={option.max}
+            step={option.step}
+          />
+        )
+
+      case "color":
+        return (
+          <div className="flex items-center space-x-2">
+            <input
+              type="color"
+              value={toolOptions[option.key] || option.defaultValue}
+              onChange={(e) => setToolOptions(prev => ({ ...prev, [option.key]: e.target.value }))}
+              className="w-8 h-8 border rounded cursor-pointer"
+            />
+            <Input
+              value={toolOptions[option.key] || option.defaultValue}
+              onChange={(e) => setToolOptions(prev => ({ ...prev, [option.key]: e.target.value }))}
+              className="flex-1 font-mono"
+            />
+          </div>
+        )
+
+      default:
+        return null
+    }
+  }
+
+  const groupedOptions = options.reduce((groups, option) => {
     const section = option.section || "General"
-    if (!acc[section]) acc[section] = []
-    acc[section].push(option)
-    return acc
+    if (!groups[section]) groups[section] = []
+    groups[section].push(option)
+    return groups
   }, {} as Record<string, ToolOption[]>)
 
-  // Render crop handles
-  const renderCropHandles = () => {
-    if (toolType !== "crop" || !cropSelection) return null
-    
-    return cropHandles.map((handle) => {
-      let style: React.CSSProperties = {
-        position: "absolute",
-        width: "12px",
-        height: "12px",
-        backgroundColor: "#3b82f6",
-        border: "2px solid white",
-        borderRadius: handle.type === "corner" ? "50%" : "2px",
-        cursor: handle.cursor,
-        zIndex: 10
-      }
-      
-      switch (handle.position) {
-        case "nw":
-          style.left = `${cropSelection.x}%`
-          style.top = `${cropSelection.y}%`
-          style.transform = "translate(-50%, -50%)"
-          break
-        case "ne":
-          style.left = `${cropSelection.x + cropSelection.width}%`
-          style.top = `${cropSelection.y}%`
-          style.transform = "translate(-50%, -50%)"
-          break
-        case "sw":
-          style.left = `${cropSelection.x}%`
-          style.top = `${cropSelection.y + cropSelection.height}%`
-          style.transform = "translate(-50%, -50%)"
-          break
-        case "se":
-          style.left = `${cropSelection.x + cropSelection.width}%`
-          style.top = `${cropSelection.y + cropSelection.height}%`
-          style.transform = "translate(-50%, -50%)"
-          break
-        case "n":
-          style.left = `${cropSelection.x + cropSelection.width / 2}%`
-          style.top = `${cropSelection.y}%`
-          style.transform = "translate(-50%, -50%)"
-          break
-        case "s":
-          style.left = `${cropSelection.x + cropSelection.width / 2}%`
-          style.top = `${cropSelection.y + cropSelection.height}%`
-          style.transform = "translate(-50%, -50%)"
-          break
-        case "w":
-          style.left = `${cropSelection.x}%`
-          style.top = `${cropSelection.y + cropSelection.height / 2}%`
-          style.transform = "translate(-50%, -50%)"
-          break
-        case "e":
-          style.left = `${cropSelection.x + cropSelection.width}%`
-          style.top = `${cropSelection.y + cropSelection.height / 2}%`
-          style.transform = "translate(-50%, -50%)"
-          break
-        case "center":
-          style.left = `${cropSelection.x + cropSelection.width / 2}%`
-          style.top = `${cropSelection.y + cropSelection.height / 2}%`
-          style.transform = "translate(-50%, -50%)"
-          style.cursor = "move"
-          style.backgroundColor = "rgba(59, 130, 246, 0.8)"
-          break
-      }
-      
-      return (
-        <div
-          key={handle.position}
-          style={style}
-          onMouseDown={(e) => handleCropHandleStart(e, handle.position)}
-          onMouseMove={handleCropHandleMove}
-          onMouseUp={handleCropEnd}
-          className="hover:scale-125 transition-transform"
+  const renderCropCanvas = () => {
+    if (!selectedFile || toolType !== "crop") return null
+
+    return (
+      <div className="relative bg-gray-100 rounded-lg overflow-hidden" style={{ aspectRatio: "16/9" }}>
+        <img
+          src={selectedFile.preview}
+          alt={selectedFile.name}
+          className="w-full h-full object-contain"
+          style={{ transform: `scale(${zoomLevel / 100})` }}
         />
-      )
-    })
+        
+        {/* Crop Overlay */}
+        <div
+          className="absolute border-2 border-blue-500 bg-blue-500/20 cursor-move"
+          style={{
+            left: `${cropArea.x}%`,
+            top: `${cropArea.y}%`,
+            width: `${cropArea.width}%`,
+            height: `${cropArea.height}%`,
+          }}
+          onMouseDown={handleCanvasMouseDown}
+          onMouseMove={handleCanvasMouseMove}
+          onMouseUp={handleCanvasMouseUp}
+        >
+          {/* Resize Handles */}
+          <div className="absolute -top-1 -left-1 w-3 h-3 bg-blue-500 border border-white rounded-full cursor-nw-resize"></div>
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 border border-white rounded-full cursor-ne-resize"></div>
+          <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-blue-500 border border-white rounded-full cursor-sw-resize"></div>
+          <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-blue-500 border border-white rounded-full cursor-se-resize"></div>
+          
+          {/* Edge Handles */}
+          <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-blue-500 border border-white rounded-full cursor-n-resize"></div>
+          <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-blue-500 border border-white rounded-full cursor-s-resize"></div>
+          <div className="absolute -left-1 top-1/2 transform -translate-y-1/2 w-3 h-3 bg-blue-500 border border-white rounded-full cursor-w-resize"></div>
+          <div className="absolute -right-1 top-1/2 transform -translate-y-1/2 w-3 h-3 bg-blue-500 border border-white rounded-full cursor-e-resize"></div>
+        </div>
+
+        {/* Canvas Tools */}
+        <div className="absolute top-4 left-4 flex space-x-2">
+          <Button
+            variant={canvasMode === "select" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setCanvasMode("select")}
+          >
+            <MousePointer className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={canvasMode === "crop" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setCanvasMode("crop")}
+          >
+            <Crop className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={canvasMode === "move" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setCanvasMode("move")}
+          >
+            <Hand className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Zoom Controls */}
+        <div className="absolute top-4 right-4 flex items-center space-x-2 bg-white/90 backdrop-blur-sm rounded-lg p-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setZoomLevel(Math.max(25, zoomLevel - 25))}
+          >
+            <ZoomOut className="h-4 w-4" />
+          </Button>
+          <span className="text-sm font-medium min-w-[3rem] text-center">
+            {zoomLevel}%
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setZoomLevel(Math.min(400, zoomLevel + 25))}
+          >
+            <ZoomIn className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Crop Info */}
+        <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg p-2 text-xs">
+          <div>X: {Math.round(cropArea.x)}% Y: {Math.round(cropArea.y)}%</div>
+          <div>W: {Math.round(cropArea.width)}% H: {Math.round(cropArea.height)}%</div>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className={`flex h-screen w-full overflow-hidden bg-gray-50 ${isMobile ? 'flex-col' : ''}`}>
-      {/* Left Canvas - Enhanced Image Preview */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Enhanced Header with more controls */}
-        <div className="bg-white border-b px-4 py-3 flex items-center justify-between shadow-sm">
-          <div className="flex items-center space-x-4">
-            <Link href="/">
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </Link>
-            <div className="flex items-center space-x-2">
-              <Icon className="h-5 w-5 text-blue-600" />
-              <h1 className="text-xl font-semibold text-gray-900">{title}</h1>
+    <div className="min-h-screen bg-gray-50">
+      <Header />
+
+      <div className="container mx-auto px-4 py-6">
+        {/* Header */}
+        <div className="mb-6">
+          <Link href="/image-tools">
+            <Button variant="ghost" className="mb-4">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Image Tools
+            </Button>
+          </Link>
+          
+          <div className="flex items-center space-x-3 mb-2">
+            <div className="p-2 rounded-lg bg-blue-100">
+              <Icon className="h-6 w-6 text-blue-600" />
             </div>
-            <Badge variant="secondary">{files.length} files</Badge>
-            {currentFile && (
-              <Badge variant="outline">
-                {currentFile.dimensions.width} × {currentFile.dimensions.height}
-              </Badge>
-            )}
-            {isMobile && (
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              >
-                <Menu className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-          <div className="flex items-center space-x-1">
-            {/* History Controls */}
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={undo}
-              disabled={historyIndex <= 0}
-              title="Undo (Ctrl+Z)"
-            >
-              <Undo className="h-4 w-4" />
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={redo}
-              disabled={historyIndex >= history.length - 1}
-              title="Redo (Ctrl+Shift+Z)"
-            >
-              <Redo className="h-4 w-4" />
-            </Button>
-            
-            {/* Canvas Controls */}
-            {toolType === "crop" && (
-              <>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setShowGrid(!showGrid)}
-                  className={showGrid ? "bg-blue-50 text-blue-600" : ""}
-                  title="Toggle Grid (Ctrl+G)"
-                >
-                  <Grid className="h-4 w-4" />
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setSnapToGrid(!snapToGrid)}
-                  className={snapToGrid ? "bg-blue-50 text-blue-600" : ""}
-                  title="Snap to Grid"
-                >
-                  <MousePointer className="h-4 w-4" />
-                </Button>
-              </>
-            )}
-            
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={resetTool}
-              title="Reset Tool"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-            
-            {currentFile && (
-              <div className="flex items-center space-x-1 border rounded-lg bg-gray-50">
-                <Button variant="ghost" size="sm" onClick={() => setZoomLevel(prev => Math.max(25, prev - 25))}>
-                  <ZoomOut className="h-4 w-4" />
-                </Button>
-                <span className="text-sm px-3 py-1 bg-white rounded border font-mono">{zoomLevel}%</span>
-                <Button variant="ghost" size="sm" onClick={() => setZoomLevel(prev => Math.min(400, prev + 25))}>
-                  <ZoomIn className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => { setZoomLevel(100); setPanOffset({ x: 0, y: 0 }) }}>
-                  <Maximize2 className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+              <p className="text-gray-600">{description}</p>
+            </div>
           </div>
         </div>
 
-        {/* Enhanced Canvas Content */}
-        <div className="flex-1 overflow-hidden">
-          {files.length === 0 ? (
-            <div className="h-full flex flex-col">
-              <div className="flex-1 flex items-center justify-center p-6">
-                <div 
-                  className="max-w-lg w-full border-2 border-dashed border-gray-300 rounded-2xl flex flex-col items-center justify-center text-gray-500 cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all duration-300 p-12 group"
-                  onDrop={handleDrop}
-                  onDragOver={handleDragOver}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <div className="relative mb-6">
-                    <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-xl group-hover:blur-2xl transition-all"></div>
-                    <Upload className="relative h-16 w-16 text-blue-500 group-hover:text-blue-600 transition-colors group-hover:scale-110 transform duration-300" />
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2 text-gray-700 group-hover:text-blue-600 transition-colors">Drop images here</h3>
-                  <p className="text-gray-500 mb-4 text-base">or click to browse files</p>
-                  <Button className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 group-hover:scale-105">
-                    <Upload className="h-4 w-4 mr-2" />
-                    Choose Images
-                  </Button>
-                  <div className="mt-4 space-y-1">
-                    <p className="text-sm text-gray-500 font-medium">
-                      Supported formats: {supportedFormats.map(f => f.split('/')[1].toUpperCase()).join(', ')}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      Maximum {maxFiles} files • Up to 100MB each
-                    </p>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Main Canvas Area */}
+          <div className="lg:col-span-3">
+            <Card className="h-full">
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">Canvas</CardTitle>
+                  <div className="flex items-center space-x-2">
+                    {files.length > 0 && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
+                        >
+                          {viewMode === "grid" ? <List className="h-4 w-4" /> : <Grid className="h-4 w-4" />}
+                        </Button>
+                        {!singleFileOnly && (
+                          <Badge variant="secondary">
+                            {files.length} file{files.length > 1 ? 's' : ''}
+                          </Badge>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
-              </div>
-            </div>
-          ) : (
-            <div className="h-full flex flex-col">
-              {/* Enhanced Image Canvas */}
-              <div 
-                className="flex-1 overflow-hidden relative bg-gray-100" 
-                ref={canvasRef}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-              >
-                {/* Grid overlay */}
-                {showGrid && (
-                  <div className="absolute inset-0 pointer-events-none z-5">
-                    <svg className="w-full h-full opacity-30">
-                      <defs>
-                        <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-                          <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#94a3b8" strokeWidth="0.5"/>
-                        </pattern>
-                      </defs>
-                      <rect width="100%" height="100%" fill="url(#grid)" />
-                    </svg>
+              </CardHeader>
+              <CardContent>
+                {files.length === 0 ? (
+                  <div
+                    className={`border-2 border-dashed rounded-xl p-12 text-center transition-all duration-200 cursor-pointer ${
+                      isDragActive 
+                        ? "border-blue-500 bg-blue-50 scale-105" 
+                        : "border-gray-300 hover:border-blue-400 hover:bg-blue-50/30"
+                    }`}
+                    onDrop={(e) => {
+                      e.preventDefault()
+                      setIsDragActive(false)
+                      if (e.dataTransfer.files) handleFileUpload(e.dataTransfer.files)
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault()
+                      setIsDragActive(true)
+                    }}
+                    onDragLeave={(e) => {
+                      e.preventDefault()
+                      setIsDragActive(false)
+                    }}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className={`h-16 w-16 mx-auto mb-4 transition-colors ${
+                      isDragActive ? "text-blue-500" : "text-gray-400"
+                    }`} />
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                      {isDragActive ? "Drop images here" : "Select images"}
+                    </h3>
+                    <p className="text-gray-500 mb-6">
+                      Drag and drop or click to browse your files
+                    </p>
+                    <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
+                      <Upload className="h-5 w-5 mr-2" />
+                      Select Images
+                    </Button>
+                    <div className="mt-4 text-sm text-gray-500">
+                      <p>Maximum {maxFiles} files • Up to 100MB each</p>
+                      <p>Supports: {supportedFormats.map(f => f.split('/')[1].toUpperCase()).join(', ')}</p>
+                    </div>
                   </div>
-                )}
-                
-                <div className="absolute inset-0 flex items-center justify-center p-4">
-                  {currentFile && (
-                    <div className="relative group max-w-full max-h-full select-none">
-                      <div 
-                        className="relative inline-block transition-transform duration-200"
-                        style={{ 
-                          transform: `scale(${zoomLevel / 100}) translate(${panOffset.x}px, ${panOffset.y}px)`,
-                          maxWidth: isMobile ? "100vw" : "calc(100vw - 400px)",
-                          maxHeight: isMobile ? "60vh" : "calc(100vh - 200px)"
-                        }}
-                        onMouseDown={toolType === "crop" ? undefined : (e) => {
-                          setIsPanning(true)
-                          setLastPanPoint({ x: e.clientX, y: e.clientY })
-                        }}
-                        onMouseMove={toolType === "crop" ? undefined : (e) => {
-                          if (!isPanning) return
-                          const deltaX = e.clientX - lastPanPoint.x
-                          const deltaY = e.clientY - lastPanPoint.y
-                          setPanOffset(prev => ({ x: prev.x + deltaX, y: prev.y + deltaY }))
-                          setLastPanPoint({ x: e.clientX, y: e.clientY })
-                        }}
-                        onMouseUp={toolType === "crop" ? undefined : () => setIsPanning(false)}
-                        onMouseLeave={toolType === "crop" ? undefined : () => setIsPanning(false)}
-                      >
-                        <img
-                          ref={imageRef}
-                          src={currentFile.processedPreview || currentFile.preview}
-                          alt={currentFile.name}
-                          className="max-w-full max-h-[70vh] object-contain border-2 border-gray-300 rounded-lg shadow-xl bg-white"
-                          style={{ 
-                            userSelect: "none",
-                            cursor: toolType === "crop" ? "crosshair" : isPanning ? "grabbing" : "grab"
-                          }}
-                          onMouseDown={toolType === "crop" ? handleCropStart : undefined}
-                          onMouseMove={toolType === "crop" ? handleCropMove : undefined}
-                          onMouseUp={toolType === "crop" ? handleCropEnd : undefined}
-                          onMouseLeave={toolType === "crop" ? handleCropEnd : undefined}
-                          draggable={false}
-                        />
-                        
-                        {/* Enhanced Crop Overlay with Transform Controls */}
-                        {toolType === "crop" && cropSelection && (
-                          <>
-                            {/* Crop Selection Area */}
+                ) : (
+                  <div className="space-y-4">
+                    {/* Single File Canvas for Crop Tool */}
+                    {toolType === "crop" && selectedFile ? (
+                      renderCropCanvas()
+                    ) : (
+                      /* Multiple Files Grid */
+                      <ScrollArea className="h-96">
+                        <div className={`grid gap-4 ${
+                          viewMode === "grid" 
+                            ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-4" 
+                            : "grid-cols-1"
+                        }`}>
+                          {files.map((file) => (
                             <div
-                              className="absolute border-2 border-blue-500 bg-blue-500/10 backdrop-blur-sm"
-                              style={{
-                                left: `${cropSelection.x}%`,
-                                top: `${cropSelection.y}%`,
-                                width: `${cropSelection.width}%`,
-                                height: `${cropSelection.height}%`
-                              }}
+                              key={file.id}
+                              className={`relative border-2 rounded-lg p-2 cursor-pointer transition-all ${
+                                selectedFile?.id === file.id 
+                                  ? "border-blue-500 bg-blue-50" 
+                                  : "border-gray-200 hover:border-gray-300"
+                              }`}
+                              onClick={() => setSelectedFile(file)}
                             >
-                              {/* Crop Info Tooltip */}
-                              <div className="absolute -top-16 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs px-3 py-2 rounded-lg shadow-lg whitespace-nowrap">
-                                <div className="text-center">
-                                  {Math.round(cropSelection.width)}% × {Math.round(cropSelection.height)}%
-                                </div>
-                                {currentFile && (
-                                  <div className="text-center mt-1 text-gray-300">
-                                    {Math.round((cropSelection.width / 100) * currentFile.dimensions.width)} × {Math.round((cropSelection.height / 100) * currentFile.dimensions.height)} px
+                              <div className="relative">
+                                <img
+                                  src={file.processed ? file.processedPreview : file.preview}
+                                  alt={file.name}
+                                  className="w-full h-32 object-cover rounded"
+                                />
+                                {file.processed && (
+                                  <div className="absolute top-2 left-2">
+                                    <Badge className="bg-green-100 text-green-800">
+                                      Processed
+                                    </Badge>
                                   </div>
                                 )}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="absolute top-2 right-2 h-6 w-6 p-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    removeFile(file.id)
+                                  }}
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
                               </div>
-                              
-                              {/* Rule of thirds grid */}
-                              <div className="absolute inset-0 pointer-events-none">
-                                <div className="w-full h-full grid grid-cols-3 grid-rows-3">
-                                  {Array.from({ length: 9 }).map((_, i) => (
-                                    <div key={i} className="border border-white/30"></div>
-                                  ))}
+                              <div className="mt-2">
+                                <p className="text-sm font-medium truncate">{file.name}</p>
+                                <div className="flex justify-between text-xs text-gray-500">
+                                  <span>{file.dimensions.width}×{file.dimensions.height}</span>
+                                  <span>{formatFileSize(file.processed ? file.processedSize || file.size : file.size)}</span>
                                 </div>
                               </div>
                             </div>
-                            
-                            {/* Transform Handles */}
-                            {renderCropHandles()}
-                            
-                            {/* Darkened overlay for non-selected areas */}
-                            <div className="absolute inset-0 pointer-events-none">
-                              <div 
-                                className="absolute inset-0 bg-black/40"
-                                style={{
-                                  clipPath: `polygon(
-                                    0% 0%, 
-                                    0% 100%, 
-                                    ${cropSelection.x}% 100%, 
-                                    ${cropSelection.x}% ${cropSelection.y}%, 
-                                    ${cropSelection.x + cropSelection.width}% ${cropSelection.y}%, 
-                                    ${cropSelection.x + cropSelection.width}% ${cropSelection.y + cropSelection.height}%, 
-                                    ${cropSelection.x}% ${cropSelection.y + cropSelection.height}%, 
-                                    ${cropSelection.x}% 100%, 
-                                    100% 100%, 
-                                    100% 0%
-                                  )`
-                                }}
-                              />
-                            </div>
-                          </>
-                        )}
-
-                        {/* Enhanced Image Info Overlay */}
-                        <div className="absolute bottom-4 left-4 bg-black/80 backdrop-blur-sm text-white text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                          <div className="flex items-center space-x-4">
-                            <span>{currentFile.dimensions.width} × {currentFile.dimensions.height}</span>
-                            <span>{formatFileSize(currentFile.size)}</span>
-                            <span>{currentFile.name.split('.').pop()?.toUpperCase()}</span>
-                            <span>Zoom: {zoomLevel}%</span>
-                          </div>
+                          ))}
                         </div>
-                        
-                        {/* Canvas Tools Overlay */}
-                        {toolType === "crop" && (
-                          <div className="absolute top-4 right-4 flex flex-col space-y-2">
-                            <Button 
-                              variant="secondary" 
-                              size="sm"
-                              onClick={() => setCropSelection({ x: 10, y: 10, width: 80, height: 80 })}
-                              className="bg-white/90 backdrop-blur-sm"
-                            >
-                              <Square className="h-4 w-4 mr-2" />
-                              Reset Crop
-                            </Button>
-                            <Button 
-                              variant="secondary" 
-                              size="sm"
-                              onClick={() => setCropSelection({ x: 0, y: 0, width: 100, height: 100 })}
-                              className="bg-white/90 backdrop-blur-sm"
-                            >
-                              <Maximize2 className="h-4 w-4 mr-2" />
-                              Select All
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Enhanced File Thumbnails Bar */}
-              {files.length > 1 && (
-                <div className="border-t bg-white p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">
-                      {files.length} images loaded
-                    </span>
-                    <div className="flex items-center space-x-2">
-                      <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-                        <Upload className="h-3 w-3 mr-1" />
-                        Add More
-                      </Button>
-                    </div>
+                      </ScrollArea>
+                    )}
                   </div>
-                  <ScrollArea orientation="horizontal">
-                    <div className="flex space-x-3">
-                      {files.map((file) => (
-                        <div
-                          key={file.id}
-                          className={`relative flex-shrink-0 cursor-pointer transition-all duration-200 ${
-                            selectedFile === file.id 
-                              ? "ring-3 ring-blue-500 scale-105 shadow-lg" 
-                              : "hover:scale-105 hover:shadow-lg hover:ring-2 hover:ring-gray-300"
-                          }`}
-                          onClick={() => setSelectedFile(file.id)}
-                        >
-                          <img
-                            src={file.processedPreview || file.preview}
-                            alt={file.name}
-                            className="w-20 h-20 object-cover rounded-lg border-2 border-gray-200 bg-white"
-                          />
-                          
-                          {/* File info overlay */}
-                          <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs p-1 rounded-b-lg">
-                            <div className="truncate">{file.name}</div>
-                            <div className="text-gray-300">{file.dimensions.width}×{file.dimensions.height}</div>
-                          </div>
-                          
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            className="absolute -top-2 -right-2 w-6 h-6 p-0 rounded-full shadow-lg"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              removeFile(file.id)
-                            }}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                          
-                          {file.processed && (
-                            <div className="absolute -bottom-2 -left-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
-                              <CheckCircle className="w-4 h-4 text-white" />
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+                )}
 
-      {/* Enhanced Right Sidebar */}
-      <div className={`${isMobile ? 'w-full' : 'w-96'} bg-white ${isMobile ? 'border-t' : 'border-l'} shadow-lg flex flex-col max-h-screen ${isMobile && sidebarCollapsed ? 'hidden' : ''}`}>
-        {/* Enhanced Sidebar Header */}
-        <div className="px-4 py-3 border-b bg-gradient-to-r from-gray-50 to-gray-100 flex-shrink-0">
-          <div className="flex items-center space-x-2">
-            <Icon className="h-5 w-5 text-blue-600" />
-            <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
-            {isMobile && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => setSidebarCollapsed(true)}
-                className="ml-auto"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept={supportedFormats.join(",")}
+                  multiple={!singleFileOnly && maxFiles > 1}
+                  onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
+                  className="hidden"
+                />
+              </CardContent>
+            </Card>
           </div>
-          <p className="text-sm text-gray-600 mt-1">{description}</p>
-        </div>
 
-        {/* Enhanced Sidebar Content with Tabs */}
-        <div className="flex-1 overflow-hidden flex flex-col">
-          {/* Sidebar Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-            <TabsList className="grid w-full grid-cols-3 m-2">
-              <TabsTrigger value="options" className="text-xs">
-                <Settings className="h-3 w-3 mr-1" />
-                Options
-              </TabsTrigger>
-              <TabsTrigger value="layers" className="text-xs">
-                <Layers className="h-3 w-3 mr-1" />
-                Layers
-              </TabsTrigger>
-              <TabsTrigger value="history" className="text-xs">
-                <History className="h-3 w-3 mr-1" />
-                History
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="options" className="flex-1 overflow-hidden">
-          <ScrollArea className="flex-1">
-              <div className="p-4 space-y-4">
-              {/* Quick Presets */}
-              {presets.length > 0 && (
-                  <Card className="p-3">
-                  <Label className="text-sm font-medium">Quick Presets</Label>
-                    <div className="grid grid-cols-2 gap-2 mt-2">
-                    {presets.map((preset) => (
+          {/* Right Sidebar */}
+          <div className="space-y-6">
+            {/* Presets */}
+            {presets.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Quick Presets</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 gap-2">
+                    {presets.map((preset, index) => (
                       <Button
-                        key={preset.name}
+                        key={index}
                         variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setToolOptions(prev => ({ ...prev, ...preset.values }))
-                          saveToHistory(`Apply preset: ${preset.name}`)
-                        }}
-                          className="text-xs h-8 hover:bg-blue-50"
+                        onClick={() => applyPreset(preset)}
+                        className="justify-start h-auto p-3"
                       >
-                        {preset.name}
+                        <div className="text-left">
+                          <div className="font-medium">{preset.name}</div>
+                          <div className="text-xs text-gray-500">
+                            {Object.entries(preset.values).slice(0, 2).map(([key, value]) => 
+                              `${key}: ${value}`
+                            ).join(', ')}
+                          </div>
+                        </div>
                       </Button>
                     ))}
                   </div>
-                  </Card>
-              )}
+                </CardContent>
+              </Card>
+            )}
 
-              {/* Crop Selection Info */}
-              {toolType === "crop" && cropSelection && currentFile && (
-                  <Card className="p-3 bg-blue-50 border-blue-200">
-                    <Label className="text-sm font-medium text-blue-900 mb-2 block">Crop Selection</Label>
-                    <div className="grid grid-cols-2 gap-3 text-xs">
+            {/* Crop Controls */}
+            {toolType === "crop" && selectedFile && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Crop Controls</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <span className="text-blue-700">Percentage:</span>
-                        <div className="font-mono">{Math.round(cropSelection.width)}% × {Math.round(cropSelection.height)}%</div>
+                      <Label className="text-sm">X Position</Label>
+                      <Input
+                        type="number"
+                        value={Math.round(cropArea.x)}
+                        onChange={(e) => updateCropArea({ x: Number(e.target.value) })}
+                        min={0}
+                        max={100}
+                      />
                     </div>
                     <div>
-                        <span className="text-blue-700">Pixels:</span>
-                        <div className="font-mono">
-                        {Math.round((cropSelection.width / 100) * currentFile.dimensions.width)} × {Math.round((cropSelection.height / 100) * currentFile.dimensions.height)}
-                      </div>
+                      <Label className="text-sm">Y Position</Label>
+                      <Input
+                        type="number"
+                        value={Math.round(cropArea.y)}
+                        onChange={(e) => updateCropArea({ y: Number(e.target.value) })}
+                        min={0}
+                        max={100}
+                      />
                     </div>
-                      <div>
-                        <span className="text-blue-700">Position:</span>
-                        <div className="font-mono">{Math.round(cropSelection.x)}, {Math.round(cropSelection.y)}</div>
-                      </div>
-                      <div>
-                        <span className="text-blue-700">Aspect:</span>
-                        <div className="font-mono">{(cropSelection.width / cropSelection.height).toFixed(2)}</div>
-                      </div>
+                    <div>
+                      <Label className="text-sm">Width</Label>
+                      <Input
+                        type="number"
+                        value={Math.round(cropArea.width)}
+                        onChange={(e) => updateCropArea({ width: Number(e.target.value) })}
+                        min={1}
+                        max={100}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm">Height</Label>
+                      <Input
+                        type="number"
+                        value={Math.round(cropArea.height)}
+                        onChange={(e) => updateCropArea({ height: Number(e.target.value) })}
+                        min={1}
+                        max={100}
+                      />
+                    </div>
                   </div>
-                  </Card>
-              )}
 
-              {/* Grouped Options */}
-              {Object.entries(groupedOptions).map(([section, sectionOptions]) => (
-                  <Card key={section} className="p-3">
-                  {section !== "General" && (
-                      <Label className="text-sm font-medium text-gray-900 mb-3 block">{section}</Label>
-                  )}
-                  
-                    <div className="space-y-3">
-                      {sectionOptions.map((option) => {
-                    // Check condition if exists
-                    if (option.condition && !option.condition(toolOptions)) {
-                      return null
-                    }
-
-                    return (
-                        <div key={option.key} className="space-y-2">
-                          <Label className="text-sm font-medium text-gray-700">{option.label}</Label>
-                        
-                        {option.type === "select" && (
-                          <Select
-                            value={toolOptions[option.key]?.toString()}
-                            onValueChange={(value) => {
-                              setToolOptions(prev => ({ ...prev, [option.key]: value }))
-                              saveToHistory(`Change ${option.label}`)
-                            }}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {option.selectOptions?.map((opt) => (
-                                <SelectItem key={opt.value} value={opt.value}>
-                                  {opt.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-
-                        {option.type === "slider" && (
-                          <div className="space-y-2">
-                            <Slider
-                              value={[toolOptions[option.key] || option.defaultValue]}
-                                onValueChange={([value]) => {
-                                  setToolOptions(prev => ({ ...prev, [option.key]: value }))
-                                }}
-                                onValueCommit={() => saveToHistory(`Adjust ${option.label}`)}
-                              min={option.min}
-                              max={option.max}
-                              step={option.step}
-                                className="w-full"
-                            />
-                            <div className="flex justify-between text-xs text-gray-500">
-                              <span>{option.min}</span>
-                                <span className="font-mono bg-gray-100 px-2 py-1 rounded">{toolOptions[option.key] || option.defaultValue}</span>
-                              <span>{option.max}</span>
-                            </div>
-                          </div>
-                        )}
-
-                        {option.type === "input" && (
-                          <Input
-                            type="number"
-                            value={toolOptions[option.key] || option.defaultValue}
-                            onChange={(e) => {
-                              setToolOptions(prev => ({ ...prev, [option.key]: parseInt(e.target.value) || option.defaultValue }))
-                            }}
-                              onBlur={() => saveToHistory(`Change ${option.label}`)}
-                            min={option.min}
-                            max={option.max}
-                              className="font-mono"
-                          />
-                        )}
-
-                        {option.type === "checkbox" && (
-                          <div className="flex items-center space-x-2">
-                            <Checkbox
-                              checked={toolOptions[option.key] || false}
-                              onCheckedChange={(checked) => {
-                                setToolOptions(prev => ({ ...prev, [option.key]: checked }))
-                                saveToHistory(`Toggle ${option.label}`)
-                              }}
-                            />
-                              <Label className="text-sm cursor-pointer">{option.label}</Label>
-                          </div>
-                        )}
-
-                        {option.type === "color" && (
-                            <div className="flex items-center space-x-3">
-                            <input
-                              type="color"
-                              value={toolOptions[option.key] || option.defaultValue}
-                              onChange={(e) => {
-                                setToolOptions(prev => ({ ...prev, [option.key]: e.target.value }))
-                                saveToHistory(`Change ${option.label}`)
-                              }}
-                                className="w-12 h-10 border-2 border-gray-300 rounded-lg cursor-pointer shadow-sm"
-                            />
-                            <Input
-                              value={toolOptions[option.key] || option.defaultValue}
-                              onChange={(e) => {
-                                setToolOptions(prev => ({ ...prev, [option.key]: e.target.value }))
-                              }}
-                                onBlur={() => saveToHistory(`Change ${option.label}`)}
-                                className="flex-1 font-mono"
-                            />
-                          </div>
-                        )}
-
-                        {option.type === "text" && (
-                          <Input
-                            value={toolOptions[option.key] || option.defaultValue}
-                            onChange={(e) => {
-                              setToolOptions(prev => ({ ...prev, [option.key]: e.target.value }))
-                            }}
-                              onBlur={() => saveToHistory(`Change ${option.label}`)}
-                            placeholder={option.label}
-                          />
-                        )}
-                        </div>
-                    )
-                      })}
+                  <div className="space-y-2">
+                    <Label className="text-sm">Aspect Ratio Presets</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { name: "1:1", ratio: 1 },
+                        { name: "4:3", ratio: 4/3 },
+                        { name: "16:9", ratio: 16/9 },
+                        { name: "3:2", ratio: 3/2 }
+                      ].map((preset) => (
+                        <Button
+                          key={preset.name}
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const newHeight = cropArea.width / preset.ratio
+                            updateCropArea({ height: Math.min(90, newHeight) })
+                          }}
+                        >
+                          {preset.name}
+                        </Button>
+                      ))}
                     </div>
-                  </Card>
-              ))}
-            </div>
-          </ScrollArea>
-            </TabsContent>
-            
-            <TabsContent value="layers" className="flex-1 overflow-hidden">
-              <ScrollArea className="flex-1">
-                <div className="p-4 space-y-3">
-                  {currentFile?.layers?.map((layer) => (
-                    <Card key={layer.id} className="p-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <Checkbox checked={layer.visible} />
-                          <span className="text-sm font-medium">{layer.name}</span>
-                        </div>
-                        <span className="text-xs text-gray-500">{layer.opacity}%</span>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              </ScrollArea>
-            </TabsContent>
-            
-            <TabsContent value="history" className="flex-1 overflow-hidden">
-              <ScrollArea className="flex-1">
-                <div className="p-4 space-y-2">
-                  {history.map((item, index) => (
-                    <div 
-                      key={index}
-                      className={`p-2 rounded-lg text-sm cursor-pointer transition-colors ${
-                        index === historyIndex 
-                          ? "bg-blue-100 text-blue-900 border border-blue-300" 
-                          : "hover:bg-gray-100"
-                      }`}
-                      onClick={() => {
-                        setFiles(item.files)
-                        setCropSelection(item.cropSelection)
-                        setHistoryIndex(index)
-                      }}
-                    >
-                      <div className="font-medium">{item.action}</div>
-                      <div className="text-xs text-gray-500">
-                        {new Date(item.timestamp).toLocaleTimeString()}
-                      </div>
-                    </div>
-                  ))}
-                  {history.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
-                      <History className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">No history yet</p>
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
-            </TabsContent>
-          </Tabs>
+                  </div>
 
-          {/* Enhanced Sidebar Footer */}
-          <div className="p-4 border-t bg-gradient-to-r from-gray-50 to-gray-100 space-y-3 flex-shrink-0">
+                  <Button
+                    variant="outline"
+                    onClick={() => updateCropArea({ x: 10, y: 10, width: 80, height: 80 })}
+                    className="w-full"
+                  >
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Reset Crop
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Tool Options */}
+            {Object.keys(groupedOptions).length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center">
+                    <Settings className="h-5 w-5 mr-2" />
+                    Settings
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Tabs defaultValue={Object.keys(groupedOptions)[0]} className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                      {Object.keys(groupedOptions).slice(0, 2).map((section) => (
+                        <TabsTrigger key={section} value={section} className="text-xs">
+                          {section}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                    
+                    {Object.entries(groupedOptions).map(([section, sectionOptions]) => (
+                      <TabsContent key={section} value={section} className="space-y-4 mt-4">
+                        {sectionOptions.map((option) => (
+                          <div key={option.key} className="space-y-2">
+                            <Label className="text-sm font-medium">{option.label}</Label>
+                            {renderOptionControl(option)}
+                          </div>
+                        ))}
+                      </TabsContent>
+                    ))}
+                  </Tabs>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Processing Status */}
             {isProcessing && (
-                <Card className="p-3 bg-blue-50 border-blue-200">
-                <div className="flex items-center space-x-2 mb-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                  <span className="text-sm font-medium text-blue-800">Processing images...</span>
-                </div>
-                  <Progress value={66} className="h-3" />
-                <p className="text-xs text-blue-600 mt-1">This may take a few moments</p>
-                </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Processing</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Progress</span>
+                      <span>{progress}%</span>
+                    </div>
+                    <Progress value={progress} />
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    Processing your images...
+                  </p>
+                </CardContent>
+              </Card>
             )}
 
-            {/* Ready Status */}
-            {!isProcessing && files.length > 0 && processedFiles.length === 0 && (
-                <Card className="p-3 bg-amber-50 border-amber-200">
-                <div className="flex items-center space-x-2">
-                  <Info className="h-4 w-4 text-amber-600" />
-                  <span className="text-sm text-amber-800">Ready to process {files.length} image{files.length > 1 ? 's' : ''}</span>
-                </div>
-                </Card>
-            )}
+            {/* Action Button */}
+            <Card>
+              <CardContent className="pt-6">
+                <Button
+                  onClick={processFiles}
+                  disabled={files.length === 0 || isProcessing}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                  size="lg"
+                >
+                  {isProcessing ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Icon className="h-5 w-5 mr-2" />
+                      {title}
+                    </>
+                  )}
+                </Button>
+                
+                {files.length > 0 && !isProcessing && (
+                  <p className="text-xs text-center text-gray-500 mt-2">
+                    {files.length} image{files.length > 1 ? 's' : ''} ready to process
+                  </p>
+                )}
+              </CardContent>
+            </Card>
 
-            {/* Main Action Button */}
-            <Button 
-              onClick={handleProcess}
-              disabled={isProcessing || files.length === 0}
-                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py
+            {/* File Info */}
+            {selectedFile && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Image Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-500">Dimensions:</span>
+                      <span className="ml-2 font-medium">
+                        {selectedFile.dimensions.width}×{selectedFile.dimensions.height}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Size:</span>
+                      <span className="ml-2 font-medium">
+                        {formatFileSize(selectedFile.size)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Format:</span>
+                      <span className="ml-2 font-medium">
+                        {selectedFile.type.split('/')[1].toUpperCase()}
+                      </span>
+                    </div>
+                    {selectedFile.processed && selectedFile.processedSize && (
+                      <div>
+                        <span className="text-gray-500">New Size:</span>
+                        <span className="ml-2 font-medium">
+                          {formatFileSize(selectedFile.processedSize)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <Footer />
+    </div>
+  )
+}

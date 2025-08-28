@@ -97,6 +97,26 @@ const cropOptions = [
     step: 5,
     section: "Output",
   },
+  {
+    key: "borderRadius",
+    label: "Border Radius (px)",
+    type: "slider" as const,
+    defaultValue: 0,
+    min: 0,
+    max: 50,
+    step: 1,
+    section: "Style",
+  },
+  {
+    key: "shadowBlur",
+    label: "Shadow Blur",
+    type: "slider" as const,
+    defaultValue: 0,
+    min: 0,
+    max: 20,
+    step: 1,
+    section: "Style",
+  },
 ]
 
 const cropPresets = [
@@ -178,7 +198,9 @@ async function cropImages(files: any[], options: any) {
           cropArea,
           { 
             outputFormat: options.outputFormat || "png", 
-            quality: options.quality || 95 
+            quality: options.quality || 95,
+            borderRadius: options.borderRadius || 0,
+            shadowBlur: options.shadowBlur || 0
           }
         )
 

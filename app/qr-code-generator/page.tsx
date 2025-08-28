@@ -13,6 +13,7 @@ import { QRProcessor } from "@/lib/qr-processor"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { QRDesignStudio } from "@/components/qr-design-studio"
 import {
   QrCode,
   Download,
@@ -77,16 +78,6 @@ export default function QRCodeGeneratorPage() {
   ]
 
   const generateQRContent = () => {
-    try {
-    switch (activeType) {
-      case "url":
-      case "text":
-          if (!content.trim()) return ""
-        return content
-      case "email":
-          if (!emailData.email.trim()) return ""
-        return `mailto:${emailData.email}?subject=${encodeURIComponent(emailData.subject)}&body=${encodeURIComponent(emailData.body)}`
-      case "phone":
           if (!phoneData.phone.trim()) return ""
         return `tel:${phoneData.phone}`
       case "sms":
@@ -113,92 +104,6 @@ export default function QRCodeGeneratorPage() {
     }
   }
 
-  useEffect(() => {
-    const generateQR = async () => {
-      try {
-        const qrContent = generateQRContent()
-        if (!qrContent.trim()) {
-          setQrDataUrl("")
-          return
-        }
-
-        // Use logo file if available, otherwise use URL
-        const logoSrc = logoFile ? URL.createObjectURL(logoFile) : logoUrl
-        const qrOptions = {
-          width: qrSize[0],
-          color: {
-            dark: foregroundColor,
-            light: backgroundColor,
-          },
-          errorCorrectionLevel: errorCorrection as "L" | "M" | "Q" | "H",
-          logo: logoSrc
-            ? {
-                src: logoSrc,
-                width: qrSize[0] * 0.2,
-              }
-            : undefined,
-          style: {
-            shape: qrStyle,
-            corners: cornerStyle,
-            dots: dotStyle
-          }
-        }
-
-        const qrDataURL = await QRProcessor.generateQRCode(qrContent, qrOptions)
-        setQrDataUrl(qrDataURL)
-
-      } catch (error) {
-        console.error("Failed to generate QR code:", error)
-        setQrDataUrl("")
-        toast({
-          title: "QR Generation Failed",
-          description: error instanceof Error ? error.message : "Please check your input and try again",
-          variant: "destructive"
-        })
-      }
-    }
-
-    generateQR()
-  }, [
-    activeType,
-    content,
-    emailData,
-    phoneData,
-    smsData,
-    wifiData,
-    vcardData,
-    eventData,
-    qrSize,
-    foregroundColor,
-    backgroundColor,
-    logoUrl,
-    logoFile,
-    qrStyle,
-    cornerStyle,
-    dotStyle,
-    errorCorrection,
-  ])
-
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file && file.type.startsWith("image/")) {
-      setLogoFile(file)
-      setLogoUrl("") // Clear URL when file is selected
-      
-      // Create preview
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        setLogoPreview(e.target?.result as string)
-      }
-      reader.readAsDataURL(file)
-    }
-  }
-
-  const clearLogo = () => {
-    setLogoFile(null)
-    setLogoUrl("")
-    setLogoPreview("")
-  }
   const downloadQR = async (format: string) => {
     try {
       const qrContent = generateQRContent()
@@ -212,12 +117,11 @@ export default function QRCodeGeneratorPage() {
       }
 
       if (format === "svg") {
-        const qrOptions = {
-          width: qrSize[0],
-          color: { dark: foregroundColor, light: backgroundColor },
-          errorCorrectionLevel: errorCorrection as "L" | "M" | "Q" | "H"
-        }
-        const svgString = await QRProcessor.generateQRCodeSVG(qrContent, qrOptions)
+        const svgString = await QRProcessor.generateQRCodeSVG(qrContent, {
+          width: 1000,
+          color: { dark: "#000000", light: "#FFFFFF" },
+          errorCorrectionLevel: "M"
+        })
         const blob = new Blob([svgString], { type: "image/svg+xml" })
         const url = URL.createObjectURL(blob)
         const link = document.createElement("a")
@@ -614,9 +518,9 @@ export default function QRCodeGeneratorPage() {
 
       <div className="container mx-auto px-4 py-8">
         <div className="bg-white rounded-xl shadow-2xl overflow-hidden border border-green-200">
-          <div className="grid grid-cols-1 lg:grid-cols-3">
+          <div className="grid grid-cols-1 lg:grid-cols-2">
             {/* Left Panel - Content Input */}
-            <div className="lg:col-span-2 p-8 space-y-8">
+            <div className="p-8 space-y-6">
               {/* Content Input */}
               <Card>
                 <CardHeader className="pb-6">
@@ -631,358 +535,65 @@ export default function QRCodeGeneratorPage() {
                   {renderContentForm()}
                 </CardContent>
               </Card>
-
-              {/* Set Colors */}
-              <Card>
-                <CardHeader className="pb-6">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center shadow-md">
-                      <Palette className="h-5 w-5 text-white" />
-                    </div>
-                    <CardTitle className="text-xl font-bold text-gray-800">SET COLORS</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="foreground-color" className="text-sm font-semibold text-gray-700">Foreground Color</Label>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <input
-                          id="foreground-color"
-                          type="color"
-                          value={foregroundColor}
-                          onChange={(e) => setForegroundColor(e.target.value)}
-                          className="w-12 h-10 border-2 border-gray-300 rounded-lg cursor-pointer shadow-sm"
-                        />
-                        <Input
-                          value={foregroundColor}
-                          onChange={(e) => setForegroundColor(e.target.value)}
-                          placeholder="#000000"
-                          className="flex-1 font-mono"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <Label htmlFor="background-color" className="text-sm font-semibold text-gray-700">Background Color</Label>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <input
-                          id="background-color"
-                          type="color"
-                          value={backgroundColor}
-                          onChange={(e) => setBackgroundColor(e.target.value)}
-                          className="w-12 h-10 border-2 border-gray-300 rounded-lg cursor-pointer shadow-sm"
-                        />
-                        <Input
-                          value={backgroundColor}
-                          onChange={(e) => setBackgroundColor(e.target.value)}
-                          placeholder="#FFFFFF"
-                          className="flex-1 font-mono"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Add Logo Image */}
-              <Card>
-                <CardHeader className="pb-6">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center shadow-md">
-                      <Upload className="h-5 w-5 text-white" />
-                    </div>
-                    <CardTitle className="text-xl font-bold text-gray-800">ADD LOGO IMAGE</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Logo Upload Options */}
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Upload Logo File</Label>
-                      <div className="mt-2">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleLogoUpload}
-                          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="relative">
-                      <div className="absolute inset-0 flex items-center">
-                        <span className="w-full border-t" />
-                      </div>
-                      <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-white px-2 text-gray-500">Or</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="logo-url" className="text-sm font-semibold text-gray-700">Logo URL</Label>
-                    <Input
-                      id="logo-url"
-                      type="url"
-                      value={logoUrl}
-                      onChange={(e) => {
-                        setLogoUrl(e.target.value)
-                        if (e.target.value) {
-                          setLogoFile(null) // Clear file when URL is entered
-                          setLogoPreview("")
-                        }
-                      }}
-                      placeholder="https://example.com/logo.png"
-                      className="mt-2"
-                      disabled={!!logoFile}
-                    />
-                    <p className="text-xs text-gray-500 mt-2">
-                      Enter a URL to an image that will be placed in the center of your QR code
-                    </p>
-                  </div>
-                  
-                  {/* Logo Preview */}
-                  {(logoPreview || logoUrl) && (
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold text-gray-700">Logo Preview</Label>
-                      <div className="relative inline-block">
-                        <img
-                          src={logoPreview || logoUrl}
-                          alt="Logo preview"
-                          className="w-16 h-16 object-contain border border-gray-300 rounded-lg bg-white"
-                        />
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="absolute -top-2 -right-2 w-6 h-6 p-0 rounded-full"
-                          onClick={clearLogo}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Logo Gallery */}
-                  <div className="space-y-3">
-                    <Label className="text-sm font-semibold text-gray-700">Quick Logo Gallery</Label>
-                    <div className="grid grid-cols-6 gap-3">
-                      {[
-                        { name: "Facebook", icon: "📘", color: "#1877F2", url: "https://upload.wikimedia.org/wikipedia/commons/5/51/Facebook_f_logo_%282019%29.svg" },
-                        { name: "Twitter", icon: "🐦", color: "#1DA1F2", url: "https://upload.wikimedia.org/wikipedia/commons/6/6f/Logo_of_Twitter.svg" },
-                        { name: "Instagram", icon: "📷", color: "#E4405F", url: "https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png" },
-                        { name: "LinkedIn", icon: "💼", color: "#0A66C2", url: "https://upload.wikimedia.org/wikipedia/commons/c/ca/LinkedIn_logo_initials.png" },
-                        { name: "YouTube", icon: "📺", color: "#FF0000", url: "https://upload.wikimedia.org/wikipedia/commons/0/09/YouTube_full-color_icon_%282017%29.svg" },
-                      ].map((social) => (
-                        <button
-                          key={social.name}
-                          className="w-12 h-12 rounded-lg border-2 border-gray-200 hover:border-gray-400 flex items-center justify-center text-xl transition-all hover:scale-110"
-                          style={{ backgroundColor: social.color + "20" }}
-                          title={social.name}
-                        >
-                          {social.icon}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Customize Design */}
-              <Card>
-                <CardHeader className="pb-6">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-md">
-                      <Settings className="h-5 w-5 text-white" />
-                    </div>
-                    <CardTitle className="text-xl font-bold text-gray-800">CUSTOMIZE DESIGN</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div>
-                    <Label htmlFor="error-correction" className="text-sm font-semibold text-gray-700">Error Correction Level</Label>
-                    <select
-                      id="error-correction"
-                      value={errorCorrection}
-                      onChange={(e) => setErrorCorrection(e.target.value)}
-                      className="w-full p-3 border-2 border-gray-300 rounded-lg bg-white mt-2 font-medium"
-                    >
-                      <option value="L">Low (7%)</option>
-                      <option value="M">Medium (15%)</option>
-                      <option value="Q">Quartile (25%)</option>
-                      <option value="H">High (30%)</option>
-                    </select>
-                    <p className="text-xs text-gray-500 mt-2">
-                      Higher levels allow more damage recovery but create larger QR codes
-                    </p>
-                  </div>
-                  
-                  {/* QR Code Styles */}
-                  <div className="space-y-3">
-                    <Label className="text-sm font-semibold text-gray-700">QR Code Style</Label>
-                    <div className="grid grid-cols-4 gap-3">
-                      {["square", "rounded", "dots", "extra-rounded"].map((style) => (
-                        <button
-                          key={style}
-                          className="p-3 border-2 border-gray-200 rounded-lg hover:border-indigo-400 transition-all hover:scale-105 text-xs font-medium capitalize"
-                        >
-                          {style}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
             </div>
 
             {/* Right Panel - QR Code Preview */}
-            <div className="bg-gradient-to-b from-gray-50 to-gray-100 p-8 space-y-8">
-              {/* QR Code Display */}
-              <div className="bg-white p-8 rounded-xl shadow-lg text-center border border-gray-200">
-                {qrDataUrl ? (
-                  <div className="relative">
-                    <img
-                      src={qrDataUrl}
-                      alt="QR Code"
-                      className="mx-auto max-w-full h-auto rounded-lg shadow-md"
-                      style={{ maxWidth: "300px" }}
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="absolute top-2 right-2 opacity-0 hover:opacity-100 transition-opacity"
-                      onClick={() => {
-                        navigator.clipboard.writeText(generateQRContent())
-                        toast({ title: "Content copied", description: "QR code content copied to clipboard" })
-                      }}
-                    >
-                      <Copy className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="w-64 h-64 mx-auto bg-gradient-to-br from-gray-200 to-gray-300 rounded-xl flex items-center justify-center shadow-inner">
-                    <div className="text-center">
-                      <QrCode className="h-16 w-16 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm text-gray-500">Enter content to generate QR code</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Quality Slider */}
-              <div className="space-y-4">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-xs text-gray-500 font-medium">Low Quality</span>
-                  <span className="text-sm font-bold text-gray-800 bg-gray-100 px-3 py-1 rounded-full">{qrSize[0]} x {qrSize[0]} Px</span>
-                  <span className="text-xs text-gray-500 font-medium">High Quality</span>
-                </div>
-                <Slider
-                  value={qrSize}
-                  onValueChange={setQrSize}
-                  max={2000}
-                  min={200}
-                  step={100}
-                  className="w-full h-3"
-                />
-                <div className="text-center">
-                  <Badge variant="outline" className="text-xs">
-                    File size: ~{Math.round((qrSize[0] * qrSize[0] * 3) / 1024)}KB
-                  </Badge>
-                </div>
-              </div>
-
-              {/* Download Buttons */}
-              <div className="space-y-4">
-                <Button 
-                  onClick={() => downloadQR("png")} 
-                  disabled={!qrDataUrl}
-                  className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
-                  size="lg"
-                >
-                  <Download className="h-5 w-5 mr-2" />
-                  Download High Quality PNG
-                </Button>
-
-                <div className="grid grid-cols-3 gap-3">
+            <div className="bg-gradient-to-b from-gray-50 to-gray-100 p-8">
+              <QRDesignStudio
+                content={generateQRContent()}
+                onQRGenerated={setQrDataUrl}
+              />
+              
+              {/* Download Section */}
+              <Card className="mt-6">
+                <CardContent className="pt-6 space-y-4">
                   <Button 
-                    variant="outline" 
-                    size="lg" 
-                    onClick={() => downloadQR("svg")}
-                    disabled={!generateQRContent().trim()}
-                    className="text-blue-500 border-blue-400 hover:bg-blue-50 font-semibold py-3 rounded-lg transition-all hover:scale-105"
+                    onClick={() => downloadQR("png")} 
+                    disabled={!qrDataUrl}
+                    className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
+                    size="lg"
                   >
-                    .SVG
+                    <Download className="h-5 w-5 mr-2" />
+                    Download High Quality PNG
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    size="lg" 
-                    onClick={() => {
-                      toast({
-                        title: "Feature coming soon",
-                        description: "PDF export will be available in the next update",
-                      })
-                    }}
-                    className="text-orange-500 border-orange-400 hover:bg-orange-50 font-semibold py-3 rounded-lg transition-all hover:scale-105"
-                  >
-                    .PDF*
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="lg" 
-                    onClick={() => {
-                      toast({
-                        title: "Feature coming soon", 
-                        description: "EPS export will be available in the next update",
-                      })
-                    }}
-                    className="text-purple-500 border-purple-400 hover:bg-purple-50 font-semibold py-3 rounded-lg transition-all hover:scale-105"
-                  >
-                    .EPS*
-                  </Button>
-                </div>
-
-                <p className="text-xs text-gray-400 text-center italic">
-                  * Coming soon
-                </p>
-                
-                {/* QR Code Info */}
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-2">
-                  <h4 className="text-sm font-semibold text-green-800">QR Code Info</h4>
-                  <div className="text-xs text-green-700 space-y-1">
-                    <div className="flex justify-between">
-                      <span>Content Type:</span>
-                      <span className="font-medium">{activeType.toUpperCase()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Data Length:</span>
-                      <span className="font-medium">{generateQRContent().length} chars</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Error Correction:</span>
-                      <span className="font-medium">{errorCorrection}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>QR Size:</span>
-                      <span className="font-medium">{qrSize[0]} × {qrSize[0]} px</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Content Validation */}
-                {!generateQRContent().trim() && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                    <div className="flex items-center space-x-2">
-                      <AlertCircle className="h-4 w-4 text-amber-600" />
-                      <span className="text-sm text-amber-800">Please enter content to generate QR code</span>
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         </div>
       </div>
 
+                  <div className="grid grid-cols-3 gap-3">
+                    <Button 
+                      variant="outline" 
+                      size="lg" 
+                      onClick={() => downloadQR("svg")}
+                      disabled={!generateQRContent().trim()}
+                      className="text-blue-500 border-blue-400 hover:bg-blue-50 font-semibold py-3 rounded-lg transition-all hover:scale-105"
+                    >
+                      .SVG
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="lg" 
+                      onClick={() => downloadQR("pdf")}
+                      disabled={!generateQRContent().trim()}
+                      className="text-orange-500 border-orange-400 hover:bg-orange-50 font-semibold py-3 rounded-lg transition-all hover:scale-105"
+                    >
+                      .PDF
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="lg" 
+                      onClick={() => {
+                        navigator.clipboard.writeText(generateQRContent())
+                        toast({ title: "Content copied", description: "QR code content copied to clipboard" })
+                      }}
+                      className="text-purple-500 border-purple-400 hover:bg-purple-50 font-semibold py-3 rounded-lg transition-all hover:scale-105"
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
       <Footer />
     </div>
   )
