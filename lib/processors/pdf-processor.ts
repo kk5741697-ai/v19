@@ -399,11 +399,11 @@ export class PDFProcessor {
       let wordContent = `Document: ${file.name}\n`
       wordContent += `Converted: ${new Date().toLocaleDateString()}\n`
       wordContent += `Pages: ${pageCount}\n\n`
-      wordContent += "=" * 50 + "\n\n"
+      wordContent += "=".repeat(50) + "\n\n"
       
       for (let i = 1; i <= pageCount; i++) {
         wordContent += `PAGE ${i}\n`
-        wordContent += "-" * 20 + "\n\n"
+        wordContent += "-".repeat(20) + "\n\n"
         
         // Simulate extracted text content
         wordContent += `This is the content from page ${i} of the PDF document. `
@@ -415,14 +415,14 @@ export class PDFProcessor {
         }
         
         if (i < pageCount) {
-          wordContent += "\n" + "=" * 50 + "\n\n"
+          wordContent += "\n" + "=".repeat(50) + "\n\n"
         }
       }
       
       wordContent += `\n\nDocument Information:\n`
       wordContent += `- Original file: ${file.name}\n`
       wordContent += `- Total pages: ${pageCount}\n`
-      wordContent += `- Conversion method: ${options.conversionMode || 'no-ocr'}\n`
+      wordContent += `- Conversion method: no-ocr\n`
       wordContent += `- Processed by: PixoraTools PDF to Word Converter\n`
       
       const encoder = new TextEncoder()

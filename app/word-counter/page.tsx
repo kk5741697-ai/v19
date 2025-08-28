@@ -126,6 +126,11 @@ ${text}`
     link.download = "text-analysis-report.txt"
     link.click()
     URL.revokeObjectURL(url)
+
+    toast({
+      title: "Download started",
+      description: "Text analysis report downloaded"
+    })
   }
 
   const loadExample = () => {

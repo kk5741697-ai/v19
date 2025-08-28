@@ -71,6 +71,11 @@ export default function RandomNumberGeneratorPage() {
     link.download = "random-numbers.txt"
     link.click()
     URL.revokeObjectURL(url)
+
+    toast({
+      title: "Download started",
+      description: "Random numbers file downloaded"
+    })
   }
 
   const getStatistics = () => {

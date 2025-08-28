@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Slider } from "@/components/ui/slider"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Shield, Copy, RefreshCw, Eye, EyeOff } from "lucide-react"
+import { toast } from "@/hooks/use-toast"
 
 export default function PasswordGeneratorPage() {
   const [password, setPassword] = useState("")
@@ -48,6 +49,10 @@ export default function PasswordGeneratorPage() {
 
   const copyPassword = () => {
     navigator.clipboard.writeText(password)
+    toast({
+      title: "Copied to clipboard",
+      description: "Password has been copied"
+    })
   }
 
   const getStrengthColor = (length: number) => {

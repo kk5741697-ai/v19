@@ -164,6 +164,7 @@ export function PDFToolsLayout({
       })
       return
     }
+
     const newFiles: PDFFile[] = []
     
     for (let i = 0; i < uploadedFiles.length && i < maxFiles; i++) {
@@ -201,6 +202,7 @@ export function PDFToolsLayout({
       })
       return
     }
+
     setFiles(prev => [...prev, ...newFiles])
     
     toast({

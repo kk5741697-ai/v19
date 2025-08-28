@@ -862,7 +862,7 @@ export default function QRCodeGeneratorPage() {
                     </div>
                     <div className="flex justify-between">
                       <span>Error Correction:</span>
-                      <span className="font-medium">{errorCorrection}</span>
+                    className="w-full"
                     </div>
                     <div className="flex justify-between">
                       <span>QR Size:</span>

@@ -66,7 +66,7 @@ export default function UUIDGeneratorPage() {
   const copyUUID = (uuid: string) => {
     navigator.clipboard.writeText(uuid)
     toast({
-      title: "Copied",
+      title: "Copied to clipboard",
       description: "UUID copied to clipboard"
     })
   }
@@ -80,6 +80,11 @@ export default function UUIDGeneratorPage() {
     link.download = "uuids.txt"
     link.click()
     URL.revokeObjectURL(url)
+
+    toast({
+      title: "Download started",
+      description: "UUIDs file downloaded"
+    })
   }
 
   return (
@@ -175,7 +180,6 @@ export default function UUIDGeneratorPage() {
                     size="sm"
                     onClick={() => {
                       setCount(1)
-                      generateUUID()
                     }}
                   >
                     Single UUID
@@ -185,7 +189,6 @@ export default function UUIDGeneratorPage() {
                     size="sm"
                     onClick={() => {
                       setCount(10)
-                      generateUUID()
                     }}
                   >
                     10 UUIDs

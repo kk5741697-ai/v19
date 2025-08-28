@@ -126,6 +126,7 @@ export class QRProcessor {
             // Draw white background for logo with rounded corners
             const padding = 8
             ctx.fillStyle = "#FFFFFF"
+            ctx.beginPath()
             ctx.roundRect(logoX - padding, logoY - padding, logoSize + padding * 2, logoSize + padding * 2, 8)
             ctx.fill()
 

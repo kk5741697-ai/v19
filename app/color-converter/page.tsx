@@ -456,7 +456,7 @@ export default function ColorConverterPage() {
               <div className="text-center">
                 <div 
                   className="w-full h-20 rounded-lg border mb-2"
-                  style={{ backgroundColor: hslToRgb((colorValues.hsl.h + 30) % 360, colorValues.hsl.s, colorValues.hsl.l) }}
+                  style={{ backgroundColor: rgbToHex(...Object.values(hslToRgb((colorValues.hsl.h + 30) % 360, colorValues.hsl.s, colorValues.hsl.l))) }}
                 />
                 <div className="text-sm font-medium">Analogous +30°</div>
                 <div className="text-xs text-muted-foreground font-mono">
@@ -467,7 +467,7 @@ export default function ColorConverterPage() {
               <div className="text-center">
                 <div 
                   className="w-full h-20 rounded-lg border mb-2"
-                  style={{ backgroundColor: hslToRgb((colorValues.hsl.h - 30 + 360) % 360, colorValues.hsl.s, colorValues.hsl.l) }}
+                  style={{ backgroundColor: rgbToHex(...Object.values(hslToRgb((colorValues.hsl.h - 30 + 360) % 360, colorValues.hsl.s, colorValues.hsl.l))) }}
                 />
                 <div className="text-sm font-medium">Analogous -30°</div>
                 <div className="text-xs text-muted-foreground font-mono">

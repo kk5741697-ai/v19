@@ -189,6 +189,7 @@ export function ImageToolsLayout({
       })
       return
     }
+
     if (singleFileOnly && files.length > 0) {
       setFiles([])
       setProcessedFiles([])
@@ -233,6 +234,7 @@ export function ImageToolsLayout({
       })
       return
     }
+
     setFiles(prev => singleFileOnly ? newFiles : [...prev, ...newFiles])
     
     if (newFiles.length > 0) {

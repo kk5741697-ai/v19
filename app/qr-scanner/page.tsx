@@ -1,7 +1,5 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useRef } from "react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
@@ -66,16 +64,19 @@ export default function QRScannerPage() {
   }
 
   const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     setDragActive(false)
     handleFileUpload(e.dataTransfer.files)
   }
 
   const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
     setDragActive(true)
   }
 
+  const handleDragLeave = (e: React.DragEvent) => {
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault()
     setDragActive(false)

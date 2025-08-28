@@ -1,12 +1,15 @@
 "use client"
 
 import { useState } from "react"
+import { Header } from "@/components/header"
+import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { Copy, Download, Globe, Eye } from "lucide-react"
+import { toast } from "@/hooks/use-toast"
 
 interface MetaData {
   title: string
@@ -136,6 +139,15 @@ export default function SEOMetaGeneratorPage() {
   const copyToClipboard = async () => {
     try {
       await navigator.clipboard.writeText(output)
+      toast({
+        title: "Copied to clipboard",
+        description: "Meta tags have been copied"
+      })
+      toast({
+        title: "Copy failed",
+        description: "Failed to copy meta tags",
+        variant: "destructive"
+      })
     } catch {}
   }
 
@@ -149,18 +161,27 @@ export default function SEOMetaGeneratorPage() {
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
+
+    toast({
+      title: "Download started",
+      description: "Meta tags HTML file downloaded"
+    })
   }
 
   return (
     <div className="min-h-screen bg-background">
+      <Header />
+
       <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center gap-2 mb-6">
-          <Globe className="h-6 w-6 text-accent" />
-          <h1 className="text-2xl font-bold">SEO Meta Generator</h1>
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center space-x-2 mb-4">
+            <Globe className="h-8 w-8 text-accent" />
+            <h1 className="text-3xl font-heading font-bold text-foreground">SEO Meta Generator</h1>
+          </div>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Generate optimized meta tags, Open Graph, and Twitter Card tags for better SEO and social media sharing.
+          </p>
         </div>
-        <p className="mb-8 text-muted-foreground">
-          Generate optimized meta tags, Open Graph, and Twitter Card tags for better SEO and social media sharing.
-        </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
@@ -303,6 +324,8 @@ export default function SEOMetaGeneratorPage() {
           </div>
         </div>
       </div>
+
+      <Footer />
     </div>
   )
 }

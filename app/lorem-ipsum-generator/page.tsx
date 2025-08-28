@@ -116,6 +116,11 @@ export default function LoremIpsumGeneratorPage() {
     link.download = "lorem-ipsum.txt"
     link.click()
     URL.revokeObjectURL(url)
+
+    toast({
+      title: "Download started",
+      description: "Lorem ipsum text file downloaded"
+    })
   }
 
   return (
@@ -196,6 +201,7 @@ export default function LoremIpsumGeneratorPage() {
                       setOutputType("paragraphs")
                       setCount(3)
                       setStartWithLorem(true)
+                      generateText()
                     }}
                   >
                     3 Paragraphs
@@ -206,6 +212,7 @@ export default function LoremIpsumGeneratorPage() {
                     onClick={() => {
                       setOutputType("sentences")
                       setCount(5)
+                      generateText()
                     }}
                   >
                     5 Sentences
@@ -216,6 +223,7 @@ export default function LoremIpsumGeneratorPage() {
                     onClick={() => {
                       setOutputType("words")
                       setCount(50)
+                      generateText()
                     }}
                   >
                     50 Words
@@ -226,6 +234,7 @@ export default function LoremIpsumGeneratorPage() {
                     onClick={() => {
                       setOutputType("list")
                       setCount(5)
+                      generateText()
                     }}
                   >
                     5 List Items

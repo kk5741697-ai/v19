@@ -119,6 +119,8 @@ This is the modified text.
 Some content that has been updated.
 Additional line added here.
 Final line of original text.`)
+
+    calculateDiff()
   }
 
   const addedCount = diffResults.filter(r => r.type === "added").length
