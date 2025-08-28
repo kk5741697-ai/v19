@@ -199,13 +199,21 @@ export function ImageToolsLayout({
 
   // Enhanced crop area handling
   const updateCropArea = useCallback((newCropArea: Partial<CropArea>) => {
-    const updatedArea = { ...cropArea, ...newCropArea }
+    let updatedArea = { ...cropArea, ...newCropArea }
     
-    // Ensure crop area stays within bounds
-    updatedArea.x = Math.max(0, Math.min(100 - updatedArea.width, updatedArea.x))
-    updatedArea.y = Math.max(0, Math.min(100 - updatedArea.height, updatedArea.y))
+    // Ensure crop area stays within bounds with proper validation
+    updatedArea.x = Math.max(0, Math.min(95, updatedArea.x))
+    updatedArea.y = Math.max(0, Math.min(95, updatedArea.y))
     updatedArea.width = Math.max(5, Math.min(100 - updatedArea.x, updatedArea.width))
     updatedArea.height = Math.max(5, Math.min(100 - updatedArea.y, updatedArea.height))
+    
+    // Ensure crop area doesn't exceed image bounds
+    if (updatedArea.x + updatedArea.width > 100) {
+      updatedArea.width = 100 - updatedArea.x
+    }
+    if (updatedArea.y + updatedArea.height > 100) {
+      updatedArea.height = 100 - updatedArea.y
+    }
     
     setCropArea(updatedArea)
     
@@ -675,7 +683,7 @@ export function ImageToolsLayout({
             <Card className="h-full">
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">Canvas</CardTitle>
+                  <CardTitle className="text-lg">{title}</CardTitle>
                   <div className="flex items-center space-x-2">
                     {files.length > 0 && (
                       <>
@@ -819,48 +827,64 @@ export function ImageToolsLayout({
               {toolType === "crop" && selectedFile && (
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Crop Controls</CardTitle>
+                    <CardTitle className="text-lg">Crop options</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <Label className="text-sm">X Position</Label>
+                        <Label className="text-sm">Width (px)</Label>
                         <Input
                           type="number"
-                          value={Math.round(cropArea.x)}
-                          onChange={(e) => updateCropArea({ x: Number(e.target.value) })}
-                          min={0}
-                          max={100}
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-sm">Y Position</Label>
-                        <Input
-                          type="number"
-                          value={Math.round(cropArea.y)}
-                          onChange={(e) => updateCropArea({ y: Number(e.target.value) })}
-                          min={0}
-                          max={100}
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-sm">Width</Label>
-                        <Input
-                          type="number"
-                          value={Math.round(cropArea.width)}
-                          onChange={(e) => updateCropArea({ width: Number(e.target.value) })}
+                          value={Math.round((cropArea.width / 100) * (selectedFile.dimensions?.width || 800))}
+                          onChange={(e) => {
+                            const pixelWidth = Number(e.target.value)
+                            const percentWidth = (pixelWidth / (selectedFile.dimensions?.width || 800)) * 100
+                            updateCropArea({ width: Math.max(5, Math.min(95, percentWidth)) })
+                          }}
                           min={1}
-                          max={100}
+                          max={selectedFile.dimensions?.width || 800}
                         />
                       </div>
                       <div>
-                        <Label className="text-sm">Height</Label>
+                        <Label className="text-sm">Height (px)</Label>
                         <Input
                           type="number"
-                          value={Math.round(cropArea.height)}
-                          onChange={(e) => updateCropArea({ height: Number(e.target.value) })}
+                          value={Math.round((cropArea.height / 100) * (selectedFile.dimensions?.height || 600))}
+                          onChange={(e) => {
+                            const pixelHeight = Number(e.target.value)
+                            const percentHeight = (pixelHeight / (selectedFile.dimensions?.height || 600)) * 100
+                            updateCropArea({ height: Math.max(5, Math.min(95, percentHeight)) })
+                          }}
                           min={1}
-                          max={100}
+                          max={selectedFile.dimensions?.height || 600}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-sm">Position X (px)</Label>
+                        <Input
+                          type="number"
+                          value={Math.round((cropArea.x / 100) * (selectedFile.dimensions?.width || 800))}
+                          onChange={(e) => {
+                            const pixelX = Number(e.target.value)
+                            const percentX = (pixelX / (selectedFile.dimensions?.width || 800)) * 100
+                            updateCropArea({ x: Math.max(0, Math.min(95, percentX)) })
+                          }}
+                          min={0}
+                          max={(selectedFile.dimensions?.width || 800) - Math.round((cropArea.width / 100) * (selectedFile.dimensions?.width || 800))}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-sm">Position Y (px)</Label>
+                        <Input
+                          type="number"
+                          value={Math.round((cropArea.y / 100) * (selectedFile.dimensions?.height || 600))}
+                          onChange={(e) => {
+                            const pixelY = Number(e.target.value)
+                            const percentY = (pixelY / (selectedFile.dimensions?.height || 600)) * 100
+                            updateCropArea({ y: Math.max(0, Math.min(95, percentY)) })
+                          }}
+                          min={0}
+                          max={(selectedFile.dimensions?.height || 600) - Math.round((cropArea.height / 100) * (selectedFile.dimensions?.height || 600))}
                         />
                       </div>
                     </div>
@@ -956,7 +980,7 @@ export function ImageToolsLayout({
                   <Button
                     onClick={processFiles}
                     disabled={files.length === 0 || isProcessing}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white h-12 text-lg font-semibold"
                     size="lg"
                   >
                     {isProcessing ? (
@@ -967,7 +991,7 @@ export function ImageToolsLayout({
                     ) : (
                       <>
                         <Icon className="h-5 w-5 mr-2" />
-                        {title}
+                        {toolType === "crop" ? "Crop IMAGE" : title}
                       </>
                     )}
                   </Button>

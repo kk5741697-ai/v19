@@ -43,7 +43,7 @@ const convertOptions = [
   },
   {
     key: "rotation",
-    label: "Rotation (degrees)",
+    label: "Rotate",
     type: "select" as const,
     defaultValue: "0",
     selectOptions: [
@@ -51,20 +51,8 @@ const convertOptions = [
       { value: "90", label: "90° Clockwise" },
       { value: "180", label: "180° (Flip)" },
       { value: "270", label: "270° Clockwise" },
-      { value: "custom", label: "Custom Angle" },
     ],
     section: "Transform",
-  },
-  {
-    key: "customRotation",
-    label: "Custom Rotation Angle",
-    type: "slider" as const,
-    defaultValue: 0,
-    min: -180,
-    max: 180,
-    step: 1,
-    section: "Transform",
-    condition: (options) => options.rotation === "custom",
   },
   {
     key: "flipHorizontal",
@@ -162,12 +150,7 @@ async function convertImages(files: any[], options: any) {
 
     const processedFiles = await Promise.all(
       files.map(async (file) => {
-        let rotation = 0
-        if (options.rotation === "custom") {
-          rotation = options.customRotation || 0
-        } else {
-          rotation = parseInt(options.rotation) || 0
-        }
+        const rotation = parseInt(options.rotation) || 0
 
         const processedBlob = await ImageProcessor.convertFormat(
           file.originalFile || file.file,

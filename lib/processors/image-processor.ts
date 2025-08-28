@@ -459,48 +459,11 @@ Processing time: 2.8 seconds`
       const img = new Image()
       img.onload = () => {
         try {
-          // Better crop area validation and handling
-          let validCropArea
+          // Validate and normalize crop area
+          const normalizedCropArea = this.normalizeCropArea(cropArea, img.naturalWidth, img.naturalHeight)
           
-          if (cropArea && typeof cropArea === 'object') {
-            validCropArea = {
-              x: Math.max(0, Math.min(95, cropArea.x || 10)),
-              y: Math.max(0, Math.min(95, cropArea.y || 10)),
-              width: Math.max(5, Math.min(90, cropArea.width || 80)),
-              height: Math.max(5, Math.min(90, cropArea.height || 80))
-            }
-          } else {
-            // Default crop area if none provided
-            validCropArea = { x: 10, y: 10, width: 80, height: 80 }
-          }
-
-          // Ensure crop area doesn't exceed image bounds
-          if (validCropArea.x + validCropArea.width > 100) {
-            validCropArea.width = 100 - validCropArea.x
-          }
-          if (validCropArea.y + validCropArea.height > 100) {
-            validCropArea.height = 100 - validCropArea.y
-          }
-
-          // Convert percentage to pixels
-          const cropX = (validCropArea.x / 100) * img.naturalWidth
-          const cropY = (validCropArea.y / 100) * img.naturalHeight
-          const cropWidth = (validCropArea.width / 100) * img.naturalWidth
-          const cropHeight = (validCropArea.height / 100) * img.naturalHeight
-
-          // Ensure crop dimensions are valid and within image bounds
-          const finalCropX = Math.max(0, Math.min(img.naturalWidth - 1, cropX))
-          const finalCropY = Math.max(0, Math.min(img.naturalHeight - 1, cropY))
-          const finalCropWidth = Math.min(cropWidth, img.naturalWidth - finalCropX)
-          const finalCropHeight = Math.min(cropHeight, img.naturalHeight - finalCropY)
-
-          if (finalCropWidth <= 0 || finalCropHeight <= 0) {
-            reject(new Error("Invalid crop area - dimensions too small"))
-            return
-          }
-
-          canvas.width = Math.max(1, Math.floor(finalCropWidth))
-          canvas.height = Math.max(1, Math.floor(finalCropHeight))
+          canvas.width = Math.max(1, Math.floor(normalizedCropArea.width))
+          canvas.height = Math.max(1, Math.floor(normalizedCropArea.height))
 
           // Fill background if specified
           if (options.backgroundColor) {
@@ -515,7 +478,7 @@ Processing time: 2.8 seconds`
           // Draw cropped image
           ctx.drawImage(
             img, 
-            finalCropX, finalCropY, finalCropWidth, finalCropHeight,
+            normalizedCropArea.x, normalizedCropArea.y, normalizedCropArea.width, normalizedCropArea.height,
             0, 0, canvas.width, canvas.height
           )
 
@@ -543,6 +506,33 @@ Processing time: 2.8 seconds`
     })
   }
 
+  private static normalizeCropArea(cropArea: any, imageWidth: number, imageHeight: number) {
+    // Handle both percentage and pixel-based crop areas
+    if (!cropArea || typeof cropArea !== 'object') {
+      return {
+        x: imageWidth * 0.1,
+        y: imageHeight * 0.1,
+        width: imageWidth * 0.8,
+        height: imageHeight * 0.8
+      }
+    }
+
+    let x, y, width, height
+
+    // Check if values are percentages (0-100) or pixels
+    if (cropArea.x <= 100 && cropArea.y <= 100 && cropArea.width <= 100 && cropArea.height <= 100) {
+      // Percentage values - convert to pixels
+      x = (cropArea.x / 100) * imageWidth
+      y = (cropArea.y / 100) * imageHeight
+      width = (cropArea.width / 100) * imageWidth
+      height = (cropArea.height / 100) * imageHeight
+    } else {
+      // Pixel values - use directly
+      x = cropArea.x || 0
+      y = cropArea.y || 0
+      width = cropArea.width || imageWidth * 0.8
+      height = cropArea.height || imageHeight * 0.8
+    }
   static async rotateImage(file: File, options: ImageProcessingOptions): Promise<Blob> {
     return new Promise((resolve, reject) => {
       const canvas = document.createElement("canvas")
@@ -715,7 +705,14 @@ Processing time: 2.8 seconds`
     })
   }
 
+    // Ensure values are within image bounds
+    x = Math.max(0, Math.min(imageWidth - 10, x))
+    y = Math.max(0, Math.min(imageHeight - 10, y))
+    width = Math.max(10, Math.min(imageWidth - x, width))
+    height = Math.max(10, Math.min(imageHeight - y, height))
 
+    return { x, y, width, height }
+  }
   static async convertFormat(file: File, outputFormat: "jpeg" | "png" | "webp", options: ImageProcessingOptions): Promise<Blob> {
     return new Promise((resolve, reject) => {
       const canvas = document.createElement("canvas")

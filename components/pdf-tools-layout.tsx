@@ -430,7 +430,7 @@ export function PDFToolsLayout({
             <Card className="h-full">
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">Workspace</CardTitle>
+                  <CardTitle className="text-lg">Split</CardTitle>
                   <div className="flex items-center space-x-2">
                     {pdfPages.length > 0 && (
                       <>
@@ -565,7 +565,7 @@ export function PDFToolsLayout({
                               return (
                                 <div
                                   key={pageKey}
-                                  className={`relative border-2 rounded-lg p-2 transition-all ${
+                                  className={`relative border-2 rounded-lg p-1 transition-all ${
                                     isSelected 
                                       ? "border-blue-500 bg-blue-50" 
                                       : "border-gray-200 hover:border-gray-300"
@@ -577,23 +577,24 @@ export function PDFToolsLayout({
                                   onDragOver={allowPageReorder ? handlePageDragOver : undefined}
                                   onDrop={(e) => allowPageReorder && handlePageDrop(e, index)}
                                 >
+                                  {/* Green checkmark for selected pages */}
+                                  {isSelected && (
+                                    <div className="absolute -top-2 -left-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center z-10">
+                                      <CheckCircle className="h-4 w-4 text-white" />
+                                    </div>
+                                  )}
+                                  
                                   <img
                                     src={page.thumbnail}
                                     alt={`Page ${page.pageNumber}`}
-                                    className="w-full h-auto rounded"
+                                    className="w-full h-auto rounded border"
                                   />
                                   
-                                  <div className="absolute top-1 left-1">
-                                    <Badge variant={isSelected ? "default" : "secondary"}>
+                                  <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2">
+                                    <Badge variant="secondary" className="text-xs">
                                       {page.pageNumber}
                                     </Badge>
                                   </div>
-                                  
-                                  {allowPageSelection && (
-                                    <div className="absolute top-1 right-1">
-                                      {isSelected && <CheckCircle className="h-5 w-5 text-blue-600" />}
-                                    </div>
-                                  )}
                                   
                                   {allowPageReorder && (
                                     <div className="absolute bottom-1 right-1 flex flex-col space-y-1">
@@ -707,7 +708,36 @@ export function PDFToolsLayout({
                   <CardContent>
                     <div className="space-y-4">
                       {/* Show only essential options */}
-                      {Object.entries(groupedOptions).slice(0, 1).map(([section, sectionOptions]) => (
+                        <div className="flex items-center space-x-4">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-6 h-6 border-2 border-gray-300 rounded flex items-center justify-center">
+                              <div className="w-3 h-4 border border-gray-400"></div>
+                            </div>
+                            <span className="text-sm font-medium">Range</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <div className="w-6 h-6 border-2 border-blue-500 rounded flex items-center justify-center bg-blue-50">
+                              <div className="grid grid-cols-2 gap-0.5">
+                                <div className="w-1 h-1 bg-blue-500"></div>
+                                <div className="w-1 h-1 bg-blue-500"></div>
+                                <div className="w-1 h-1 bg-blue-500"></div>
+                                <div className="w-1 h-1 bg-blue-500"></div>
+                              </div>
+                            </div>
+                            <span className="text-sm font-medium text-blue-600">Pages</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <div className="w-6 h-6 border-2 border-gray-300 rounded flex items-center justify-center">
+                              <div className="grid grid-cols-2 gap-0.5">
+                                <div className="w-1 h-1 bg-gray-400"></div>
+                                <div className="w-1 h-1 bg-gray-400"></div>
+                                <div className="w-1 h-1 bg-gray-400"></div>
+                                <div className="w-1 h-1 bg-gray-400"></div>
+                              </div>
+                            </div>
+                            <span className="text-sm font-medium">Size</span>
+                          </div>
+                        </div>
                         <div key={section} className="space-y-3">
                           {sectionOptions.slice(0, 3).map((option) => (
                             <div key={option.key} className="space-y-2">
@@ -749,7 +779,7 @@ export function PDFToolsLayout({
                   <Button
                     onClick={processFiles}
                     disabled={files.length === 0 || isProcessing}
-                    className="w-full bg-red-600 hover:bg-red-700 text-white"
+                    className="w-full bg-red-600 hover:bg-red-700 text-white h-12 text-lg font-semibold"
                     size="lg"
                   >
                     {isProcessing ? (
@@ -760,7 +790,7 @@ export function PDFToolsLayout({
                     ) : (
                       <>
                         <Icon className="h-5 w-5 mr-2" />
-                        {title}
+                        Split PDF ⚡
                       </>
                     )}
                   </Button>

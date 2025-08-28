@@ -139,14 +139,21 @@ async function cropImages(files: any[], options: any) {
     
     const processedFiles = await Promise.all(
       files.map(async (file) => {
-        let cropArea = file.cropArea
+        // Use the crop area from the file or from options
+        let cropArea = file.cropArea || {
+          x: Math.max(0, options.positionX || 0),
+          y: Math.max(0, options.positionY || 0), 
+          width: Math.max(10, options.cropWidth || 80),
+          height: Math.max(10, options.cropHeight || 80)
+        }
         
-        if (!cropArea || typeof cropArea !== 'object') {
+        // Convert pixel values to percentages if needed
+        if (options.cropWidth && options.cropHeight && file.dimensions) {
           cropArea = {
-            x: Math.max(0, options.positionX || 10),
-            y: Math.max(0, options.positionY || 10),
-            width: Math.max(10, Math.min(90, options.cropWidth ? Math.min(90, (options.cropWidth / (file.dimensions?.width || 800)) * 100) : 80)),
-            height: Math.max(10, Math.min(90, options.cropHeight ? Math.min(90, (options.cropHeight / (file.dimensions?.height || 600)) * 100) : 80))
+            x: (options.positionX / file.dimensions.width) * 100,
+            y: (options.positionY / file.dimensions.height) * 100,
+            width: (options.cropWidth / file.dimensions.width) * 100,
+            height: (options.cropHeight / file.dimensions.height) * 100
           }
         }
         

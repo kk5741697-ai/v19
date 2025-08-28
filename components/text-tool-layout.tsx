@@ -162,6 +162,7 @@ export function TextToolLayout({
       <div className="bg-white border-b">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-center space-x-2 mb-4">
+            <span className="text-2xl font-bold text-gray-900">🤍</span>
             <span className="text-2xl font-bold text-gray-900">Code</span>
             <Heart className="h-6 w-6 text-teal-500 fill-teal-500" />
             <span className="text-2xl font-bold text-gray-900">Beautify</span>
@@ -210,7 +211,7 @@ export function TextToolLayout({
                       <Eye className="h-4 w-4" />
                     </Button>
                   </div>
-                  <div className="text-sm text-gray-500">Sample</div>
+                  <div className="text-sm text-gray-500">Input</div>
                 </div>
                 
                 <Tabs defaultValue="file" className="w-full">
@@ -236,7 +237,7 @@ export function TextToolLayout({
                 <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
                   <span>Ln: {input.split('\n').length} Col: {input.length}</span>
                   <div className="flex space-x-4">
-                    <span>JSON</span>
+                    <span>{title.includes('JSON') ? 'JSON' : title.includes('XML') ? 'XML' : 'TEXT'}</span>
                     <span>UTF-8</span>
                   </div>
                 </div>
@@ -299,7 +300,7 @@ export function TextToolLayout({
                 <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
                   <span>Ln: {output.split('\n').length} Col: {output.length}</span>
                   <div className="flex space-x-4">
-                    <span>TOML</span>
+                    <span>{title.includes('JSON') ? 'JSON' : title.includes('XML') ? 'XML' : 'TEXT'}</span>
                     <span>UTF-8</span>
                   </div>
                 </div>
@@ -374,7 +375,7 @@ export function TextToolLayout({
         <div className="text-center space-y-4">
           <Button 
             onClick={processText}
-            className="bg-teal-500 hover:bg-teal-600 text-white px-8"
+            className="bg-teal-500 hover:bg-teal-600 text-white px-8 h-12 text-lg font-semibold"
             size="lg"
           >
             {title}
@@ -389,9 +390,11 @@ export function TextToolLayout({
               <Download className="h-4 w-4 mr-2" />
               Download
             </Button>
-            <Button variant="outline" className="text-blue-600">
-              JSON Sorter
-            </Button>
+            {title.includes('JSON') && (
+              <Button variant="outline" className="text-blue-600">
+                JSON Sorter
+              </Button>
+            )}
           </div>
         </div>
 
