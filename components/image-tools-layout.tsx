@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -17,9 +16,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { 
   Upload, Download, Settings, Eye, Trash2, RotateCcw, 
   CheckCircle, AlertCircle, ImageIcon, ArrowLeft, Grid, List,
-  ZoomIn, ZoomOut, Move, RotateCw, Copy, Crop, Square,
-  Circle, MousePointer, Hand, X, Plus, Minus, Maximize,
-  FlipHorizontal, FlipVertical, Palette, Contrast
+  ZoomIn, ZoomOut, Move, RotateCw, Copy, Crop,
+  X, Plus, Minus, Maximize, FlipHorizontal, FlipVertical, Palette
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -196,125 +194,6 @@ export function ImageToolsLayout({
       setSelectedFile(null)
     }
   }
-
-  // Enhanced crop area handling
-  const updateCropArea = useCallback((newCropArea: Partial<CropArea>) => {
-    let updatedArea = { ...cropArea, ...newCropArea }
-    
-    // Ensure crop area stays within bounds with proper validation
-    updatedArea.x = Math.max(0, Math.min(95, updatedArea.x))
-    updatedArea.y = Math.max(0, Math.min(95, updatedArea.y))
-    updatedArea.width = Math.max(5, Math.min(100 - updatedArea.x, updatedArea.width))
-    updatedArea.height = Math.max(5, Math.min(100 - updatedArea.y, updatedArea.height))
-    
-    // Ensure crop area doesn't exceed image bounds
-    if (updatedArea.x + updatedArea.width > 100) {
-      updatedArea.width = 100 - updatedArea.x
-    }
-    if (updatedArea.y + updatedArea.height > 100) {
-      updatedArea.height = 100 - updatedArea.y
-    }
-    
-    setCropArea(updatedArea)
-    
-    if (selectedFile) {
-      setFiles(prev => prev.map(f => 
-        f.id === selectedFile.id 
-          ? { ...f, cropArea: updatedArea }
-          : f
-      ))
-    }
-  }, [cropArea, selectedFile])
-
-  // Enhanced mouse handlers for crop canvas
-  const handleMouseDown = useCallback((e: React.MouseEvent, handle?: string) => {
-    e.preventDefault()
-    e.stopPropagation()
-    
-    if (!canvasRef.current) return
-    
-    const rect = canvasRef.current.getBoundingClientRect()
-    setDragStart({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
-    })
-    
-    if (handle) {
-      setIsResizing(true)
-      setDragHandle(handle)
-    } else {
-      setIsDragging(true)
-    }
-  }, [])
-
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!canvasRef.current || (!isDragging && !isResizing)) return
-    
-    const rect = canvasRef.current.getBoundingClientRect()
-    const currentX = e.clientX - rect.left
-    const currentY = e.clientY - rect.top
-    
-    const deltaX = ((currentX - dragStart.x) / rect.width) * 100
-    const deltaY = ((currentY - dragStart.y) / rect.height) * 100
-
-    if (isDragging) {
-      // Move crop area
-      updateCropArea({
-        x: cropArea.x + deltaX,
-        y: cropArea.y + deltaY
-      })
-    } else if (isResizing && dragHandle) {
-      // Resize crop area based on handle
-      let newCropArea = { ...cropArea }
-      
-      switch (dragHandle) {
-        case "nw":
-          newCropArea.x += deltaX
-          newCropArea.y += deltaY
-          newCropArea.width -= deltaX
-          newCropArea.height -= deltaY
-          break
-        case "ne":
-          newCropArea.y += deltaY
-          newCropArea.width += deltaX
-          newCropArea.height -= deltaY
-          break
-        case "sw":
-          newCropArea.x += deltaX
-          newCropArea.width -= deltaX
-          newCropArea.height += deltaY
-          break
-        case "se":
-          newCropArea.width += deltaX
-          newCropArea.height += deltaY
-          break
-        case "n":
-          newCropArea.y += deltaY
-          newCropArea.height -= deltaY
-          break
-        case "s":
-          newCropArea.height += deltaY
-          break
-        case "w":
-          newCropArea.x += deltaX
-          newCropArea.width -= deltaX
-          break
-        case "e":
-          newCropArea.width += deltaX
-          break
-      }
-      
-      updateCropArea(newCropArea)
-    }
-    
-    setDragStart({ x: currentX, y: currentY })
-  }, [isDragging, isResizing, dragHandle, cropArea, dragStart, updateCropArea])
-
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false)
-    setIsResizing(false)
-    setDragHandle("")
-  }, [])
 
   const processFiles = async () => {
     if (files.length === 0) {
@@ -501,150 +380,6 @@ export function ImageToolsLayout({
     }
   }
 
-  // Enhanced crop canvas with proper interaction
-  const renderCropCanvas = () => {
-    if (!selectedFile || toolType !== "crop") return null
-
-    return (
-      <div 
-        ref={canvasRef}
-        className="relative bg-gray-900 rounded-lg overflow-hidden cursor-crosshair"
-        style={{ height: "60vh" }}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-      >
-        {/* Background Image */}
-        <img
-          src={selectedFile.preview}
-          alt={selectedFile.name}
-          className="w-full h-full object-contain select-none"
-          style={{
-            transform: `scale(${zoomLevel / 100})`,
-            filter: "brightness(0.7)"
-          }}
-          draggable={false}
-        />
-
-        {/* Grid Overlay */}
-        <div className="absolute inset-0 pointer-events-none">
-          <svg className="w-full h-full">
-            <defs>
-              <pattern id="grid" width="10%" height="10%" patternUnits="userSpaceOnUse">
-                <path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1"/>
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" />
-          </svg>
-        </div>
-
-        {/* Crop Overlay */}
-        <div
-          className="absolute border-2 border-blue-500 bg-blue-500/10 cursor-move"
-          style={{
-            left: `${cropArea.x}%`,
-            top: `${cropArea.y}%`,
-            width: `${cropArea.width}%`,
-            height: `${cropArea.height}%`,
-          }}
-          onMouseDown={(e) => handleMouseDown(e)}
-        >
-          {/* Corner Handles */}
-          <div 
-            className="absolute -top-2 -left-2 w-4 h-4 bg-blue-500 border-2 border-white rounded-full cursor-nw-resize hover:scale-125 transition-transform"
-            onMouseDown={(e) => handleMouseDown(e, "nw")}
-          />
-          <div 
-            className="absolute -top-2 -right-2 w-4 h-4 bg-blue-500 border-2 border-white rounded-full cursor-ne-resize hover:scale-125 transition-transform"
-            onMouseDown={(e) => handleMouseDown(e, "ne")}
-          />
-          <div 
-            className="absolute -bottom-2 -left-2 w-4 h-4 bg-blue-500 border-2 border-white rounded-full cursor-sw-resize hover:scale-125 transition-transform"
-            onMouseDown={(e) => handleMouseDown(e, "sw")}
-          />
-          <div 
-            className="absolute -bottom-2 -right-2 w-4 h-4 bg-blue-500 border-2 border-white rounded-full cursor-se-resize hover:scale-125 transition-transform"
-            onMouseDown={(e) => handleMouseDown(e, "se")}
-          />
-          
-          {/* Edge Handles */}
-          <div 
-            className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-blue-500 border-2 border-white rounded-full cursor-n-resize hover:scale-125 transition-transform"
-            onMouseDown={(e) => handleMouseDown(e, "n")}
-          />
-          <div 
-            className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-blue-500 border-2 border-white rounded-full cursor-s-resize hover:scale-125 transition-transform"
-            onMouseDown={(e) => handleMouseDown(e, "s")}
-          />
-          <div 
-            className="absolute -left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-blue-500 border-2 border-white rounded-full cursor-w-resize hover:scale-125 transition-transform"
-            onMouseDown={(e) => handleMouseDown(e, "w")}
-          />
-          <div 
-            className="absolute -right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-blue-500 border-2 border-white rounded-full cursor-e-resize hover:scale-125 transition-transform"
-            onMouseDown={(e) => handleMouseDown(e, "e")}
-          />
-
-          {/* Center Move Handle */}
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-6 h-6 bg-blue-500/50 border border-blue-500 rounded cursor-move flex items-center justify-center">
-            <Move className="h-3 w-3 text-white" />
-          </div>
-        </div>
-
-        {/* Canvas Controls */}
-        <div className="absolute top-4 right-4 flex flex-col space-y-2">
-          <div className="flex items-center space-x-1 bg-black/80 rounded-lg p-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setZoomLevel(Math.max(25, zoomLevel - 25))}
-              className="text-white hover:bg-white/20 h-8 w-8 p-0"
-            >
-              <ZoomOut className="h-4 w-4" />
-            </Button>
-            <span className="text-white text-xs font-medium min-w-[3rem] text-center">
-              {zoomLevel}%
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setZoomLevel(Math.min(400, zoomLevel + 25))}
-              className="text-white hover:bg-white/20 h-8 w-8 p-0"
-            >
-              <ZoomIn className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Crop Info */}
-        <div className="absolute bottom-4 left-4 bg-black/80 text-white text-xs rounded px-2 py-1 font-mono">
-          {Math.round(cropArea.x)}, {Math.round(cropArea.y)} • {Math.round(cropArea.width)}×{Math.round(cropArea.height)}%
-        </div>
-
-        {/* Aspect Ratio Presets */}
-        <div className="absolute bottom-4 right-4 flex space-x-1">
-          {["1:1", "4:3", "16:9", "3:2", "free"].map((ratio) => (
-            <Button
-              key={ratio}
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                if (ratio === "free") return
-                const [w, h] = ratio.split(':').map(Number)
-                const targetRatio = w / h
-                const newHeight = cropArea.width / targetRatio
-                updateCropArea({ height: Math.min(90, newHeight) })
-              }}
-              className="text-xs h-7 bg-black/80 text-white border-white/20 hover:bg-white/20"
-            >
-              {ratio === "free" ? "Free" : ratio}
-            </Button>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
   const groupedOptions = options.reduce((groups, option) => {
     const section = option.section || "General"
     if (!groups[section]) groups[section] = []
@@ -671,8 +406,8 @@ export function ImageToolsLayout({
               <Icon className="h-6 w-6 text-blue-600" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
-              <p className="text-gray-600">{description}</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{title}</h1>
+              <p className="text-sm sm:text-base text-gray-600">{description}</p>
             </div>
           </div>
         </div>
@@ -707,7 +442,7 @@ export function ImageToolsLayout({
               <CardContent>
                 {files.length === 0 ? (
                   <div
-                    className={`border-2 border-dashed rounded-xl p-12 text-center transition-all duration-200 cursor-pointer ${
+                    className={`border-2 border-dashed rounded-xl p-8 sm:p-12 text-center transition-all duration-200 cursor-pointer ${
                       isDragActive 
                         ? "border-blue-500 bg-blue-50 scale-105" 
                         : "border-gray-300 hover:border-blue-400 hover:bg-blue-50/30"
@@ -727,84 +462,79 @@ export function ImageToolsLayout({
                     }}
                     onClick={() => fileInputRef.current?.click()}
                   >
-                    <Upload className={`h-16 w-16 mx-auto mb-4 transition-colors ${
+                    <Upload className={`h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-4 transition-colors ${
                       isDragActive ? "text-blue-500" : "text-gray-400"
                     }`} />
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
                       {isDragActive ? "Drop images here" : "Select images"}
                     </h3>
-                    <p className="text-gray-500 mb-6">
+                    <p className="text-sm sm:text-base text-gray-500 mb-4 sm:mb-6">
                       Drag and drop or click to browse your files
                     </p>
-                    <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
+                    <Button size="lg" className="bg-blue-600 hover:bg-blue-700 h-12 sm:h-14 px-6 sm:px-8 text-base font-semibold">
                       <Upload className="h-5 w-5 mr-2" />
                       Select Images
                     </Button>
-                    <div className="mt-4 text-sm text-gray-500">
+                    <div className="mt-4 text-xs sm:text-sm text-gray-500">
                       <p>Maximum {maxFiles} files • Up to 100MB each</p>
                       <p>Supports: {supportedFormats.map(f => f.split('/')[1].toUpperCase()).join(', ')}</p>
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {/* Crop Canvas for Single File */}
-                    {toolType === "crop" && selectedFile ? (
-                      renderCropCanvas()
-                    ) : (
-                      /* Multiple Files Grid */
-                      <ScrollArea className="h-96">
-                        <div className={`grid gap-4 ${
-                          viewMode === "grid" 
-                            ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-4" 
-                            : "grid-cols-1"
-                        }`}>
-                          {files.map((file) => (
-                            <div
-                              key={file.id}
-                              className={`relative border-2 rounded-lg p-2 cursor-pointer transition-all ${
-                                selectedFile?.id === file.id 
-                                  ? "border-blue-500 bg-blue-50" 
-                                  : "border-gray-200 hover:border-gray-300"
-                              }`}
-                              onClick={() => setSelectedFile(file)}
-                            >
-                              <div className="relative">
-                                <img
-                                  src={file.processed ? file.processedPreview : file.preview}
-                                  alt={file.name}
-                                  className="w-full h-32 object-cover rounded"
-                                />
-                                {file.processed && (
-                                  <div className="absolute top-2 left-2">
-                                    <Badge className="bg-green-100 text-green-800">
-                                      Processed
-                                    </Badge>
-                                  </div>
-                                )}
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="absolute top-2 right-2 h-6 w-6 p-0"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    removeFile(file.id)
-                                  }}
-                                >
-                                  <X className="h-3 w-3" />
-                                </Button>
-                              </div>
-                              <div className="mt-2">
-                                <p className="text-sm font-medium truncate">{file.name}</p>
-                                <div className="flex justify-between text-xs text-gray-500">
-                                  <span>{file.dimensions.width}×{file.dimensions.height}</span>
-                                  <span>{formatFileSize(file.processed ? file.processedSize || file.size : file.size)}</span>
+                    {/* Multiple Files Grid */}
+                    <ScrollArea className="h-64 sm:h-96">
+                      <div className={`grid gap-2 sm:gap-4 ${
+                        viewMode === "grid" 
+                          ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4" 
+                          : "grid-cols-1"
+                      }`}>
+                        {files.map((file) => (
+                          <div
+                            key={file.id}
+                            className={`relative border-2 rounded-lg p-2 cursor-pointer transition-all ${
+                              selectedFile?.id === file.id 
+                                ? "border-blue-500 bg-blue-50" 
+                                : "border-gray-200 hover:border-gray-300"
+                            }`}
+                            onClick={() => setSelectedFile(file)}
+                          >
+                            <div className="relative">
+                              <img
+                                src={file.processed ? file.processedPreview : file.preview}
+                                alt={file.name}
+                                className="w-full h-24 sm:h-32 object-cover rounded"
+                              />
+                              {file.processed && (
+                                <div className="absolute top-2 left-2">
+                                  <Badge className="bg-green-100 text-green-800 text-xs">
+                                    Processed
+                                  </Badge>
                                 </div>
+                              )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="absolute top-2 right-2 h-6 w-6 p-0"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  removeFile(file.id)
+                                }}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                            <div className="mt-2">
+                              <p className="text-xs sm:text-sm font-medium truncate">{file.name}</p>
+                              <div className="flex justify-between text-xs text-gray-500">
+                                <span>{file.dimensions.width}×{file.dimensions.height}</span>
+                                <span>{formatFileSize(file.processed ? file.processedSize || file.size : file.size)}</span>
                               </div>
                             </div>
-                          ))}
-                        </div>
-                      </ScrollArea>
-                    )}
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
                   </div>
                 )}
 
@@ -820,87 +550,9 @@ export function ImageToolsLayout({
             </Card>
           </div>
 
-          {/* Right Sidebar - Fixed Position */}
+          {/* Right Sidebar */}
           <div className="lg:col-span-1">
-            <div className="lg:fixed lg:top-24 lg:right-4 lg:w-80 lg:h-[calc(100vh-8rem)] lg:overflow-y-auto space-y-4">
-              {/* Crop Controls for Crop Tool */}
-              {toolType === "crop" && selectedFile && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Crop options</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label className="text-sm">Width (px)</Label>
-                        <Input
-                          type="number"
-                          value={Math.round((cropArea.width / 100) * (selectedFile.dimensions?.width || 800))}
-                          onChange={(e) => {
-                            const pixelWidth = Number(e.target.value)
-                            const percentWidth = (pixelWidth / (selectedFile.dimensions?.width || 800)) * 100
-                            updateCropArea({ width: Math.max(5, Math.min(95, percentWidth)) })
-                          }}
-                          min={1}
-                          max={selectedFile.dimensions?.width || 800}
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-sm">Height (px)</Label>
-                        <Input
-                          type="number"
-                          value={Math.round((cropArea.height / 100) * (selectedFile.dimensions?.height || 600))}
-                          onChange={(e) => {
-                            const pixelHeight = Number(e.target.value)
-                            const percentHeight = (pixelHeight / (selectedFile.dimensions?.height || 600)) * 100
-                            updateCropArea({ height: Math.max(5, Math.min(95, percentHeight)) })
-                          }}
-                          min={1}
-                          max={selectedFile.dimensions?.height || 600}
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-sm">Position X (px)</Label>
-                        <Input
-                          type="number"
-                          value={Math.round((cropArea.x / 100) * (selectedFile.dimensions?.width || 800))}
-                          onChange={(e) => {
-                            const pixelX = Number(e.target.value)
-                            const percentX = (pixelX / (selectedFile.dimensions?.width || 800)) * 100
-                            updateCropArea({ x: Math.max(0, Math.min(95, percentX)) })
-                          }}
-                          min={0}
-                          max={(selectedFile.dimensions?.width || 800) - Math.round((cropArea.width / 100) * (selectedFile.dimensions?.width || 800))}
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-sm">Position Y (px)</Label>
-                        <Input
-                          type="number"
-                          value={Math.round((cropArea.y / 100) * (selectedFile.dimensions?.height || 600))}
-                          onChange={(e) => {
-                            const pixelY = Number(e.target.value)
-                            const percentY = (pixelY / (selectedFile.dimensions?.height || 600)) * 100
-                            updateCropArea({ y: Math.max(0, Math.min(95, percentY)) })
-                          }}
-                          min={0}
-                          max={(selectedFile.dimensions?.height || 600) - Math.round((cropArea.height / 100) * (selectedFile.dimensions?.height || 600))}
-                        />
-                      </div>
-                    </div>
-
-                    <Button
-                      variant="outline"
-                      onClick={() => updateCropArea({ x: 10, y: 10, width: 80, height: 80 })}
-                      className="w-full"
-                    >
-                      <RotateCcw className="h-4 w-4 mr-2" />
-                      Reset Crop
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
-
+            <div className="space-y-4">
               {/* Presets */}
               {presets.length > 0 && (
                 <Card>
@@ -926,7 +578,7 @@ export function ImageToolsLayout({
                 </Card>
               )}
 
-              {/* Tool Options - Simplified */}
+              {/* Tool Options */}
               {Object.keys(groupedOptions).length > 0 && (
                 <Card>
                   <CardHeader>
@@ -937,7 +589,6 @@ export function ImageToolsLayout({
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {/* Show only essential options */}
                       {Object.entries(groupedOptions).slice(0, 1).map(([section, sectionOptions]) => (
                         <div key={section} className="space-y-3">
                           {sectionOptions.slice(0, 4).map((option) => (

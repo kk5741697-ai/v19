@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Heart, Menu, X, MoreHorizontal, ChevronDown, Wrench, Search } from "lucide-react"
+import { Menu, X, Search, Wrench, ChevronDown } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -147,27 +147,29 @@ export function Header() {
 
   return (
     <>
-      <header className="w-full bg-white/98 backdrop-blur-md border-b border-gray-200 sticky top-0 z-40 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex h-18 items-center justify-between">
-            <Link href="/" className="flex items-center space-x-2">
+      <header className="w-full bg-white/98 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex h-16 items-center justify-between">
+            {/* Logo */}
+            <Link href="/" className="flex items-center space-x-2 flex-shrink-0">
               <div className="flex items-center space-x-2">
-                <div className={`h-10 w-10 rounded-xl ${brandConfig.bgColor} flex items-center justify-center shadow-lg hover:scale-110 transition-transform duration-200`}>
-                  <Wrench className="h-6 w-6 text-white" />
+                <div className={`h-8 w-8 sm:h-10 sm:w-10 rounded-xl ${brandConfig.bgColor} flex items-center justify-center shadow-lg hover:scale-110 transition-transform duration-200`}>
+                  <Wrench className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
                 </div>
                 <div className="flex items-center">
-                  <span className="text-2xl font-bold text-gray-900">PIXORA</span>
-                  <span className={`text-2xl font-bold ${brandConfig.color} ml-1`}>{brandConfig.name}</span>
+                  <span className="text-lg sm:text-2xl font-bold text-gray-900">PIXORA</span>
+                  <span className={`text-lg sm:text-2xl font-bold ${brandConfig.color} ml-1`}>{brandConfig.name}</span>
                 </div>
               </div>
             </Link>
 
-            <nav className="hidden lg:flex items-center space-x-6">
+            {/* Desktop Navigation */}
+            <nav className="hidden lg:flex items-center space-x-1 xl:space-x-2">
               {mainTools.map((tool) => (
                 <Link
                   key={tool.name}
                   href={tool.href}
-                  className="text-sm font-semibold text-gray-700 hover:text-blue-600 transition-all duration-200 px-3 py-2 rounded-lg hover:bg-gray-50"
+                  className="text-xs xl:text-sm font-semibold text-gray-700 hover:text-blue-600 transition-all duration-200 px-2 xl:px-3 py-2 rounded-lg hover:bg-gray-50"
                 >
                   {tool.name}
                 </Link>
@@ -175,9 +177,9 @@ export function Header() {
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="text-sm font-semibold text-gray-700 hover:text-blue-600 px-3 py-2 rounded-lg hover:bg-gray-50">
+                  <Button variant="ghost" className="text-xs xl:text-sm font-semibold text-gray-700 hover:text-blue-600 px-2 xl:px-3 py-2 rounded-lg hover:bg-gray-50">
                     MORE TOOLS
-                    <ChevronDown className="h-4 w-4 ml-1" />
+                    <ChevronDown className="h-3 w-3 xl:h-4 xl:w-4 ml-1" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56 shadow-xl border-gray-200">
@@ -192,44 +194,33 @@ export function Header() {
               </DropdownMenu>
             </nav>
 
-            <div className="hidden lg:flex items-center space-x-4">
+            {/* Desktop Actions */}
+            <div className="hidden lg:flex items-center space-x-2 xl:space-x-4">
               <Button 
                 variant="outline" 
-                className="text-gray-700 hover:text-blue-600 font-medium px-4 py-2 rounded-lg hover:bg-gray-50"
+                size="sm"
+                className="text-gray-700 hover:text-blue-600 font-medium px-3 xl:px-4 py-2 rounded-lg hover:bg-gray-50"
                 onClick={() => setIsSearchOpen(true)}
               >
                 <Search className="h-4 w-4 mr-2" />
-                Search
+                <span className="hidden xl:inline">Search</span>
                 <kbd className="ml-2 text-xs bg-gray-100 px-1.5 py-0.5 rounded">⌘K</kbd>
               </Button>
-              <Button variant="ghost" className="text-gray-700 hover:text-blue-600 font-medium px-4 py-2 rounded-lg hover:bg-gray-50">
+              <Button variant="ghost" size="sm" className="text-gray-700 hover:text-blue-600 font-medium px-3 xl:px-4 py-2 rounded-lg hover:bg-gray-50">
                 Login
               </Button>
-              <Button className={`${brandConfig.bgColor} hover:opacity-90 text-white px-6 py-2 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105`}>
+              <Button size="sm" className={`${brandConfig.bgColor} hover:opacity-90 text-white px-4 xl:px-6 py-2 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105`}>
                 Sign up
               </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-lg hover:bg-gray-50">
-                    <MoreHorizontal className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 shadow-xl border-gray-200">
-                  <DropdownMenuItem asChild>
-                    <Link href="/pricing" className="font-medium">Pricing</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/billing" className="font-medium">Billing</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin" className="font-medium">Admin</Link>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
             </div>
 
             {/* Mobile menu button */}
-            <Button variant="ghost" size="sm" className="lg:hidden rounded-lg" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="lg:hidden rounded-lg p-2" 
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+            >
               {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
           </div>
@@ -238,6 +229,20 @@ export function Header() {
           {isMenuOpen && (
             <div className="lg:hidden border-t bg-white/95 backdrop-blur-md">
               <div className="px-4 py-6 space-y-4">
+                {/* Search Button */}
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => {
+                    setIsSearchOpen(true)
+                    setIsMenuOpen(false)
+                  }}
+                >
+                  <Search className="h-4 w-4 mr-2" />
+                  Search Tools
+                </Button>
+
+                {/* Navigation Links */}
                 <nav className="space-y-2">
                   {mainTools.map((tool) => (
                     <Link
@@ -249,17 +254,24 @@ export function Header() {
                       {tool.name}
                     </Link>
                   ))}
-                  {moreTools.map((tool) => (
-                    <Link
-                      key={tool.name}
-                      href={tool.href}
-                      className="block px-4 py-3 text-sm font-semibold text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-all duration-200"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      {tool.name}
-                    </Link>
-                  ))}
+                  
+                  {/* More Tools Section */}
+                  <div className="pt-2 border-t">
+                    <p className="px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wide">More Tools</p>
+                    {moreTools.map((tool) => (
+                      <Link
+                        key={tool.name}
+                        href={tool.href}
+                        className="block px-4 py-3 text-sm font-semibold text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-all duration-200"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        {tool.name}
+                      </Link>
+                    ))}
+                  </div>
                 </nav>
+
+                {/* Mobile Auth Buttons */}
                 <div className="flex space-x-3 pt-6 border-t">
                   <Button variant="outline" size="sm" className="flex-1 bg-white font-medium rounded-lg">
                     Login

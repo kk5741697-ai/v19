@@ -533,6 +533,16 @@ Processing time: 2.8 seconds`
       width = cropArea.width || imageWidth * 0.8
       height = cropArea.height || imageHeight * 0.8
     }
+
+    // Ensure values are within image bounds
+    x = Math.max(0, Math.min(imageWidth - 10, x))
+    y = Math.max(0, Math.min(imageHeight - 10, y))
+    width = Math.max(10, Math.min(imageWidth - x, width))
+    height = Math.max(10, Math.min(imageHeight - y, height))
+
+    return { x, y, width, height }
+  }
+
   static async rotateImage(file: File, options: ImageProcessingOptions): Promise<Blob> {
     return new Promise((resolve, reject) => {
       const canvas = document.createElement("canvas")
@@ -705,14 +715,6 @@ Processing time: 2.8 seconds`
     })
   }
 
-    // Ensure values are within image bounds
-    x = Math.max(0, Math.min(imageWidth - 10, x))
-    y = Math.max(0, Math.min(imageHeight - 10, y))
-    width = Math.max(10, Math.min(imageWidth - x, width))
-    height = Math.max(10, Math.min(imageHeight - y, height))
-
-    return { x, y, width, height }
-  }
   static async convertFormat(file: File, outputFormat: "jpeg" | "png" | "webp", options: ImageProcessingOptions): Promise<Blob> {
     return new Promise((resolve, reject) => {
       const canvas = document.createElement("canvas")

@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -15,10 +14,9 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Slider } from "@/components/ui/slider"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { 
-  Upload, Download, Settings, Eye, Trash2, RotateCcw, 
-  CheckCircle, AlertCircle, FileText, ArrowLeft, ArrowRight,
-  Grid, List, ZoomIn, ZoomOut, Move, RotateCw, Copy,
-  GripVertical, X, Plus, Minus, ArrowUp, ArrowDown
+  Upload, Download, Settings, Trash2, RotateCcw, 
+  CheckCircle, AlertCircle, FileText, ArrowLeft,
+  Grid, List, ZoomIn, ZoomOut, X, ArrowUp, ArrowDown
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { PDFProcessor, type PDFPageInfo } from "@/lib/processors/pdf-processor"
@@ -151,78 +149,6 @@ export function PDFToolsLayout({
 
   const clearSelection = () => {
     setSelectedPages(new Set())
-  }
-
-  // Enhanced page reordering with drag and drop
-  const handlePageDragStart = (e: React.DragEvent, pageIndex: number) => {
-    setDraggedPageIndex(pageIndex)
-    e.dataTransfer.effectAllowed = "move"
-  }
-
-  const handlePageDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = "move"
-  }
-
-  const handlePageDrop = (e: React.DragEvent, targetIndex: number) => {
-    e.preventDefault()
-    
-    if (draggedPageIndex === null || draggedPageIndex === targetIndex) return
-    
-    const newPages = [...pdfPages]
-    const draggedPage = newPages[draggedPageIndex]
-    
-    // Remove from old position
-    newPages.splice(draggedPageIndex, 1)
-    
-    // Insert at new position
-    const insertIndex = draggedPageIndex < targetIndex ? targetIndex - 1 : targetIndex
-    newPages.splice(insertIndex, 0, draggedPage)
-    
-    // Update page numbers
-    newPages.forEach((page, index) => {
-      page.pageNumber = index + 1
-    })
-    
-    setPdfPages(newPages)
-    setDraggedPageIndex(null)
-    
-    toast({
-      title: "Page reordered",
-      description: `Moved page to position ${insertIndex + 1}`
-    })
-  }
-
-  const movePageUp = (pageIndex: number) => {
-    if (pageIndex === 0) return
-    
-    const newPages = [...pdfPages]
-    const temp = newPages[pageIndex]
-    newPages[pageIndex] = newPages[pageIndex - 1]
-    newPages[pageIndex - 1] = temp
-    
-    // Update page numbers
-    newPages.forEach((page, index) => {
-      page.pageNumber = index + 1
-    })
-    
-    setPdfPages(newPages)
-  }
-
-  const movePageDown = (pageIndex: number) => {
-    if (pageIndex === pdfPages.length - 1) return
-    
-    const newPages = [...pdfPages]
-    const temp = newPages[pageIndex]
-    newPages[pageIndex] = newPages[pageIndex + 1]
-    newPages[pageIndex + 1] = temp
-    
-    // Update page numbers
-    newPages.forEach((page, index) => {
-      page.pageNumber = index + 1
-    })
-    
-    setPdfPages(newPages)
   }
 
   const processFiles = async () => {
@@ -418,8 +344,8 @@ export function PDFToolsLayout({
               <Icon className="h-6 w-6 text-red-600" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
-              <p className="text-gray-600">{description}</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{title}</h1>
+              <p className="text-sm sm:text-base text-gray-600">{description}</p>
             </div>
           </div>
         </div>
@@ -430,7 +356,7 @@ export function PDFToolsLayout({
             <Card className="h-full">
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">Split</CardTitle>
+                  <CardTitle className="text-lg">{title}</CardTitle>
                   <div className="flex items-center space-x-2">
                     {pdfPages.length > 0 && (
                       <>
@@ -468,7 +394,7 @@ export function PDFToolsLayout({
               <CardContent>
                 {files.length === 0 ? (
                   <div
-                    className={`border-2 border-dashed rounded-xl p-12 text-center transition-all duration-200 cursor-pointer ${
+                    className={`border-2 border-dashed rounded-xl p-8 sm:p-12 text-center transition-all duration-200 cursor-pointer ${
                       isDragActive 
                         ? "border-red-500 bg-red-50 scale-105" 
                         : "border-gray-300 hover:border-red-400 hover:bg-red-50/30"
@@ -488,20 +414,20 @@ export function PDFToolsLayout({
                     }}
                     onClick={() => fileInputRef.current?.click()}
                   >
-                    <Upload className={`h-16 w-16 mx-auto mb-4 transition-colors ${
+                    <Upload className={`h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-4 transition-colors ${
                       isDragActive ? "text-red-500" : "text-gray-400"
                     }`} />
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
                       {isDragActive ? "Drop PDF files here" : "Select PDF files"}
                     </h3>
-                    <p className="text-gray-500 mb-6">
+                    <p className="text-sm sm:text-base text-gray-500 mb-4 sm:mb-6">
                       Drag and drop or click to browse your files
                     </p>
-                    <Button size="lg" className="bg-red-600 hover:bg-red-700">
+                    <Button size="lg" className="bg-red-600 hover:bg-red-700 h-12 sm:h-14 px-6 sm:px-8 text-base font-semibold">
                       <Upload className="h-5 w-5 mr-2" />
                       Select PDF Files
                     </Button>
-                    <div className="mt-4 text-sm text-gray-500">
+                    <div className="mt-4 text-xs sm:text-sm text-gray-500">
                       <p>Maximum {maxFiles} files • Up to 100MB each</p>
                       <p>Supports PDF format only</p>
                     </div>
@@ -512,15 +438,16 @@ export function PDFToolsLayout({
                     <div className="space-y-2">
                       {files.map((file) => (
                         <div key={file.id} className="flex items-center space-x-3 p-3 bg-white border rounded-lg">
-                          <FileText className="h-8 w-8 text-red-600" />
-                          <div className="flex-1">
-                            <p className="font-medium text-gray-900">{file.name}</p>
-                            <p className="text-sm text-gray-500">{formatFileSize(file.size)}</p>
+                          <FileText className="h-6 w-6 sm:h-8 sm:w-8 text-red-600 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 truncate">{file.name}</p>
+                            <p className="text-xs sm:text-sm text-gray-500">{formatFileSize(file.size)}</p>
                           </div>
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => removeFile(file.id)}
+                            className="flex-shrink-0"
                           >
                             <X className="h-4 w-4" />
                           </Button>
@@ -528,12 +455,12 @@ export function PDFToolsLayout({
                       ))}
                     </div>
 
-                    {/* Enhanced PDF Pages Preview with Drag & Drop */}
+                    {/* PDF Pages Preview */}
                     {pdfPages.length > 0 && (
                       <div className="space-y-4">
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                           <h3 className="font-semibold">PDF Pages ({pdfPages.length})</h3>
-                          <div className="flex space-x-2">
+                          <div className="flex flex-wrap gap-2">
                             {allowPageSelection && (
                               <>
                                 <Button variant="outline" size="sm" onClick={selectAllPages}>
@@ -552,10 +479,10 @@ export function PDFToolsLayout({
                           </div>
                         </div>
 
-                        <ScrollArea className="h-96">
-                          <div className={`grid gap-4 ${
+                        <ScrollArea className="h-64 sm:h-96">
+                          <div className={`grid gap-2 sm:gap-4 ${
                             viewMode === "grid" 
-                              ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-4" 
+                              ? "grid-cols-3 sm:grid-cols-4 lg:grid-cols-6" 
                               : "grid-cols-1"
                           }`}>
                             {pdfPages.map((page, index) => {
@@ -570,17 +497,13 @@ export function PDFToolsLayout({
                                       ? "border-blue-500 bg-blue-50" 
                                       : "border-gray-200 hover:border-gray-300"
                                   } ${allowPageReorder ? "cursor-move" : "cursor-pointer"}`}
-                                  style={{ transform: `scale(${zoomLevel / 100})` }}
+                                  style={{ transform: `scale(${Math.min(1, zoomLevel / 100)})` }}
                                   onClick={() => allowPageSelection && togglePageSelection(pageKey)}
-                                  draggable={allowPageReorder}
-                                  onDragStart={(e) => allowPageReorder && handlePageDragStart(e, index)}
-                                  onDragOver={allowPageReorder ? handlePageDragOver : undefined}
-                                  onDrop={(e) => allowPageReorder && handlePageDrop(e, index)}
                                 >
-                                  {/* Green checkmark for selected pages */}
+                                  {/* Selection indicator */}
                                   {isSelected && (
-                                    <div className="absolute -top-2 -left-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center z-10">
-                                      <CheckCircle className="h-4 w-4 text-white" />
+                                    <div className="absolute -top-2 -left-2 w-5 h-5 sm:w-6 sm:h-6 bg-green-500 rounded-full flex items-center justify-center z-10">
+                                      <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
                                     </div>
                                   )}
                                   
@@ -595,35 +518,6 @@ export function PDFToolsLayout({
                                       {page.pageNumber}
                                     </Badge>
                                   </div>
-                                  
-                                  {allowPageReorder && (
-                                    <div className="absolute bottom-1 right-1 flex flex-col space-y-1">
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-6 w-6 p-0"
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          movePageUp(index)
-                                        }}
-                                        disabled={index === 0}
-                                      >
-                                        <ArrowUp className="h-3 w-3" />
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-6 w-6 p-0"
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          movePageDown(index)
-                                        }}
-                                        disabled={index === pdfPages.length - 1}
-                                      >
-                                        <ArrowDown className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                  )}
                                 </div>
                               )
                             })}
@@ -646,9 +540,9 @@ export function PDFToolsLayout({
             </Card>
           </div>
 
-          {/* Right Sidebar - Fixed Position */}
+          {/* Right Sidebar */}
           <div className="lg:col-span-1">
-            <div className="lg:fixed lg:top-24 lg:right-4 lg:w-80 lg:h-[calc(100vh-8rem)] lg:overflow-y-auto space-y-4">
+            <div className="space-y-4">
               {/* Page Selection for Split Tool */}
               {toolType === "split" && pdfPages.length > 0 && (
                 <Card>
@@ -696,7 +590,7 @@ export function PDFToolsLayout({
                 </Card>
               )}
 
-              {/* Tool Options - Simplified */}
+              {/* Tool Options */}
               {Object.keys(groupedOptions).length > 0 && (
                 <Card>
                   <CardHeader>
@@ -707,37 +601,7 @@ export function PDFToolsLayout({
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {/* Show only essential options */}
-                        <div className="flex items-center space-x-4">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-6 h-6 border-2 border-gray-300 rounded flex items-center justify-center">
-                              <div className="w-3 h-4 border border-gray-400"></div>
-                            </div>
-                            <span className="text-sm font-medium">Range</span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <div className="w-6 h-6 border-2 border-blue-500 rounded flex items-center justify-center bg-blue-50">
-                              <div className="grid grid-cols-2 gap-0.5">
-                                <div className="w-1 h-1 bg-blue-500"></div>
-                                <div className="w-1 h-1 bg-blue-500"></div>
-                                <div className="w-1 h-1 bg-blue-500"></div>
-                                <div className="w-1 h-1 bg-blue-500"></div>
-                              </div>
-                            </div>
-                            <span className="text-sm font-medium text-blue-600">Pages</span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <div className="w-6 h-6 border-2 border-gray-300 rounded flex items-center justify-center">
-                              <div className="grid grid-cols-2 gap-0.5">
-                                <div className="w-1 h-1 bg-gray-400"></div>
-                                <div className="w-1 h-1 bg-gray-400"></div>
-                                <div className="w-1 h-1 bg-gray-400"></div>
-                                <div className="w-1 h-1 bg-gray-400"></div>
-                              </div>
-                            </div>
-                            <span className="text-sm font-medium">Size</span>
-                          </div>
-                        </div>
+                      {Object.entries(groupedOptions).slice(0, 1).map(([section, sectionOptions]) => (
                         <div key={section} className="space-y-3">
                           {sectionOptions.slice(0, 3).map((option) => (
                             <div key={option.key} className="space-y-2">
@@ -790,7 +654,7 @@ export function PDFToolsLayout({
                     ) : (
                       <>
                         <Icon className="h-5 w-5 mr-2" />
-                        Split PDF ⚡
+                        {title} ⚡
                       </>
                     )}
                   </Button>
